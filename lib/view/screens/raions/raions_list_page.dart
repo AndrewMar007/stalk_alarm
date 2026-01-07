@@ -14,6 +14,17 @@ class RaionsListPage extends StatefulWidget {
   @override
   State<RaionsListPage> createState() => _RaionsListPageState();
 }
+const bottomGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(72, 232, 136, 27),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(66, 232, 136, 27),
+  ],
+  stops: [0.02, 0.4, 0.8, 1.0],
+);
 
 class _RaionsListPageState extends State<RaionsListPage> {
   final _storage = SavedAdminUnitsStorage();
@@ -45,8 +56,8 @@ class _RaionsListPageState extends State<RaionsListPage> {
 
   bool _isActiveByUnit(
     SavedAdminUnit unit,
-    Set<String> activeRaionUids,      // "150"
-    Set<String> activeOblastTitles,   // "Миколаївська область"
+    Set<String> activeRaionUids, // "150"
+    Set<String> activeOblastTitles, // "Миколаївська область"
   ) {
     // якщо користувач вибрав район — перевіряй його
     final raionUid = unit.raionUid?.toString();
@@ -76,10 +87,10 @@ class _RaionsListPageState extends State<RaionsListPage> {
         actions: [
           IconButton(
             onPressed: () async {
-              await Navigator.of(context, rootNavigator: false).push(
-                CupertinoPageRoute(builder: (_) => const OblastsPage()),
-              );
-              await loadLocalData();
+              await Navigator.of(
+                context,
+                rootNavigator: false,
+              ).push(CupertinoPageRoute(builder: (_) => const OblastsPage()));
             },
             icon: const Icon(
               Icons.add,
@@ -97,8 +108,13 @@ class _RaionsListPageState extends State<RaionsListPage> {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 2, width: double.infinity),
-
+          SizedBox(
+            height: 2, // товщина лінії
+            width: double.infinity,
+            child: const DecoratedBox(
+              decoration: BoxDecoration(gradient: bottomGradient),
+            ),
+          ),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constrains) {
@@ -109,7 +125,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
                   return const Center(
                     child: Text(
                       "Нічого не вибрано",
-                      style: TextStyle(color: Color.fromARGB(255, 248, 165, 101)),
+                      style: TextStyle(
+                        color: Color.fromARGB(255, 248, 165, 101),
+                      ),
                     ),
                   );
                 }
@@ -177,19 +195,33 @@ class _RaionsListPageState extends State<RaionsListPage> {
                             ],
                           ),
                           subtitle: Padding(
-                            padding: EdgeInsets.only(top: constrains.maxHeight * 0.015),
+                            padding: EdgeInsets.only(
+                              top: constrains.maxHeight * 0.015,
+                            ),
                             child: Row(
                               children: [
                                 Text(
                                   active
-                                      ? "В даному регіоні тривога є"
-                                      : "В даному регіоні тривоги немає",
+                                      ? "В даному регіоні триває викид"
+                                      : "В даному регіоні немає викиду",
                                   style: TextStyle(
                                     color: active
-                                        ? const Color.fromARGB(255, 255, 120, 80)
-                                        : const Color.fromARGB(255, 154, 83, 21),
+                                        ? const Color.fromARGB(
+                                            255,
+                                            255,
+                                            120,
+                                            80,
+                                          )
+                                        : const Color.fromARGB(
+                                            255,
+                                            154,
+                                            83,
+                                            21,
+                                          ),
                                     fontSize: 12,
-                                    fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                                    fontWeight: active
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
                                   ),
                                 ),
                                 const Spacer(),
@@ -204,7 +236,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                             ),
                           ),
                           onTap: () {
-                            Navigator.of(context, rootNavigator: false).push(
+                            Navigator.of(context).push(
                               CupertinoPageRoute(
                                 builder: (_) => RaionsInfoPage(unit: unit),
                               ),
@@ -214,7 +246,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
                       },
                       separatorBuilder: (_, __) => Container(
                         height: 2,
-                        color: const Color.fromARGB(30, 232, 136, 27),
+                        decoration:  BoxDecoration(
+                      gradient: bottomGradient,
+                    ),
                       ),
                     );
                   },

@@ -21,11 +21,11 @@ const bottomGradient = LinearGradient(
   end: Alignment.centerRight,
   colors: [
     Color.fromARGB(72, 232, 136, 27),
-    Color.fromARGB(255, 57, 33, 6),
-    Color.fromARGB(255, 45, 26, 5),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(4, 249, 189, 25),
     Color.fromARGB(66, 232, 136, 27),
   ],
-  stops: [0.02, 0.25, 0.6, 1.0],
+  stops: [0.02, 0.4, 0.8, 1.0],
 );
 
 const separatedGradient = LinearGradient(
@@ -33,11 +33,11 @@ const separatedGradient = LinearGradient(
   end: Alignment.centerRight,
   colors: [
     Color.fromARGB(72, 232, 136, 27),
-    Color.fromARGB(255, 57, 33, 6),
-    Color.fromARGB(255, 45, 26, 5),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(4, 249, 189, 25),
     Color.fromARGB(66, 232, 136, 27),
   ],
-  stops: [0.02, 0.5, 0.8, 1.0],
+  stops: [0.02, 0.4, 0.8, 1.0],
 );
 
 class _RaionsPageState extends State<RaionsPage> {
@@ -54,7 +54,7 @@ class _RaionsPageState extends State<RaionsPage> {
       appBar: AppBar(
         backgroundColor: Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Color.fromARGB(255, 255, 170, 105)),
+        iconTheme: IconThemeData(color: Color.fromARGB(255, 224, 125, 15)),
 
         title: Text(
           "Оберіть район",
@@ -120,8 +120,11 @@ class _RaionsPageState extends State<RaionsPage> {
                           Raion(uid: null, oblastUid: null, title: null),
                           Hromada(uid: null, raionUid: null, title: null),
                         );
-                        Navigator.of(context, rootNavigator: false).push(
-                          CupertinoPageRoute(builder: (_) => RaionsListPage()),
+                        Navigator.of(context).pushAndRemoveUntil(
+                          CupertinoPageRoute(
+                            builder: (_) => const RaionsListPage(),
+                          ),
+                          (route) => false, // ❌ очищає ВСЕ
                         );
                       },
                     );
