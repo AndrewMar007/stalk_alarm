@@ -40,7 +40,11 @@ const separatedGradient = LinearGradient(
 );
 
 class _RaionsInfoPageState extends State<RaionsInfoPage> {
-  
+  String _titleOfUnit(SavedAdminUnit u) {
+    if (u.hromadaTitle != null) return u.hromadaTitle!;
+    if (u.raionTitle != null) return u.raionTitle!;
+    return u.oblastTitle;
+  }
 
   final storage = SavedAdminUnitsStorage();
   @override
@@ -54,19 +58,19 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
         actions: [
           IconButton(
             onPressed: () async {
-             if(widget.unit.raionUid != null){
-               await FirebaseMessaging.instance.unsubscribeFromTopic(
-                widget.unit.raionUid!,
-              );
-              debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
-              await storage.remove(widget.unit);
-             } else if (widget.unit.raionUid == null){
-                 await FirebaseMessaging.instance.unsubscribeFromTopic(
-                widget.unit.oblastUid,
-              );
-              debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
-              await storage.remove(widget.unit);
-             }
+              if (widget.unit.raionUid != null) {
+                await FirebaseMessaging.instance.unsubscribeFromTopic(
+                  widget.unit.raionUid!,
+                );
+                debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
+                await storage.remove(widget.unit);
+              } else if (widget.unit.raionUid == null) {
+                await FirebaseMessaging.instance.unsubscribeFromTopic(
+                  widget.unit.oblastUid,
+                );
+                debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
+                await storage.remove(widget.unit);
+              }
 
               Navigator.of(context).pushAndRemoveUntil(
                 CupertinoPageRoute(builder: (_) => const RaionsListPage()),
@@ -101,11 +105,40 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text("${widget.unit.hromadaTitle}"),
-                    Icon(Icons.task_alt_outlined),
-                    Text("Немає тривоги"),
-                    Text("Слідкуйте за подальшими оновленнями"),
+                    SizedBox(height: constraints.maxHeight * 0.03),
+                    Text(
+                      _titleOfUnit(widget.unit),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        
+                        color: Color.fromARGB(255, 247, 135, 50),
+                        fontSize: 20,
+                      ),
+                    ),
+                    SizedBox(height: constraints.maxHeight * 0.03),
+
+                    Column(
+                      children: [
+                        Icon(
+                          Icons.task_alt_outlined,
+                          color: Color.fromARGB(255, 247, 135, 50),
+                          size: 120,
+                        ),
+                        SizedBox(height: constraints.maxHeight * 0.03),
+                        Text(
+                          "Немає викиду",
+                          style: TextStyle(
+                            color: Color.fromARGB(255, 247, 135, 50),
+                            fontSize: 20,
+                          ),
+                        ),
+                        SizedBox(height: constraints.maxHeight * 0.03),
+
+                        Text("Слідкуйте за подальшими оновленнями", style: TextStyle(color: Color.fromARGB(255, 247, 135, 50)),),
+                      ],
+                    ),
                   ],
                 );
               },
