@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc_event.dart';
 import 'package:stalc_alarm/view/screens/main_screen.dart';
 import 'package:stalc_alarm/view/screens/router/cupertino_bottom_navigation_bar.dart';
 import 'firebase_options.dart';
@@ -59,7 +60,7 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('alarm'),
         category: AndroidNotificationCategory.alarm,
-        fullScreenIntent: true
+        fullScreenIntent: true,
       ),
     ),
   );
@@ -67,7 +68,7 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
- 
+
   // ✅ init DI first (GetIt registrations)
   await di.init();
 
@@ -127,7 +128,11 @@ class _AppRootState extends State<AppRoot> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => AlarmBloc(getCurrentAlarmUseCase: di.sl())),
+        BlocProvider(
+          create: (context) =>
+              AlarmBloc(getCurrentAlarmUseCase: di.sl())
+                ..add(StartAlarmPollingEvent(intervalMs: 15000)),
+        ),
       ],
       child: const MyApp(),
     );
@@ -140,10 +145,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-    
       title: 'Stalc Alarm',
       theme: ThemeData(
-        
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),

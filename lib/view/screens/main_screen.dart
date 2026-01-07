@@ -1,15 +1,14 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+
 import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
-import 'package:stalc_alarm/view/bloc/alarm_bloc_event.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc_state.dart';
 
 import '../../models/alert_model.dart';
-import '../widgets/gradient_container.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,114 +19,60 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
-  late List<AlertModel> listOfAlerts = [];
-  bool loading = false;
   String? error;
-  //  get() async {
-  //   final data = await getData();
-  //   listOfAlerts = data;
-  // }
 
-  // Future<void> _loadAlerts() async {
-  //   setState(() {
-  //     loading = true;
-  //     error = null;
-  //   });
+  // щоб не перемальовувати SVG без потреби
+  Set<int> _lastIds = {};
 
-  //   try {
-  //     final data = await getData(); // List<AlertModel>
+  Future<void> _updateSvgFromAlerts(List<AlertModel> alerts) async {
+    // ⚠️ Ти використовуєш locationOblastUid як id для path'ів — ок, лишаємо як є.
+    final ids = alerts
+        .map((e) => e.locationOblastUid)
+        .whereType<int>()
+        .toSet();
 
-  //     if (!mounted) return;
-  //     setState(() {
-  //       listOfAlerts = data;
-  //       loading = false;
-  //     });
+    // якщо нічого не змінилось — не перегенеровуємо SVG
+    if (setEquals(ids, _lastIds) && svgData != null) return;
 
-  //     // ✅ після того як дані є — будуємо SVG
-  //     await _buildSvgFromAlerts(data);
-  //   } catch (e) {
-  //     if (!mounted) return;
-  //     setState(() {
-  //       error = e.toString();
-  //       loading = false;
-  //     });
-  //   }
-  // }
-
-  Future<void> _buildSvgFromAlerts(List<AlertModel> alerts) async {
-    final oblastUids = alerts.map((e) => e.locationOblastUid).toSet().toList();
+    _lastIds = ids;
 
     final v = await highlightRaionsSvgByIds(
       assetPath: 'assets/maps/ukraine_raions.svg',
-      raionIds: oblastUids,
+      raionIds: ids.toList(),
       fillHex: '#AD1700',
       strokeWidth: 6,
     );
 
     if (!mounted) return;
-    setState(() => svgData = v);
+    setState(() {
+      svgData = v;
+      error = null;
+    });
   }
 
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AlarmBloc>().add(
-        StartPollingEvent(interval: const Duration(seconds: 15)),
-      );
-    });
-
-    // _loadAlerts();
-    //get();
-    // final List<int> oblastUids = listOfAlerts.map((e) => e.locationOblastUid).toSet().toList();
-    // // ✅ Тут список районів, де тривога (з API будеш підставляти реальні)
-    // final alarmRaions = oblastUids;
-
-    // highlightRaionsSvgByIds(
-    //   assetPath: 'assets/maps/ukraine_raions.svg',
-    //   raionIds: alarmRaions,
-    //   fillHex: '#AD1700',
-    //   //strokeHex: '#FF5252',
-    //   strokeWidth: 6,
-    // ).then((v) {
-    //   if (!mounted) return;
-    //   setState(() => svgData = v);
-    // });
+    // ❗️НЕ стартуємо polling тут.
+    // Він має стартувати один раз в main.dart:
+    // AlarmBloc(...)..add(StartAlarmPollingEvent(intervalMs: 15000))
   }
 
   @override
   Widget build(BuildContext context) {
-    DateTime now = DateTime.now();
-    String formattedDate = DateFormat.yMMMMd('en_US').format(now);
-    const hudGreen = Color(0xFF7CFF7C);
+    final now = DateTime.now();
+    final formattedDate = DateFormat.yMMMMd('en_US').format(now);
 
     return Scaffold(
       body: BlocListener<AlarmBloc, AlarmBlocState>(
         listener: (context, state) async {
           if (state is LoadedState) {
-            final alerts = state.alarmList;
-
-            final oblastUids = alerts
-                .map((e) => e.locationOblastUid)
-                .toSet()
-                .toList();
-            final v = await highlightRaionsSvgByIds(
-              assetPath: 'assets/maps/ukraine_raions.svg',
-              raionIds: oblastUids,
-              fillHex: '#AD1700',
-              strokeWidth: 6,
-            );
+            await _updateSvgFromAlerts(state.alarmList);
+          } else if (state is ErrorState) {
             if (!mounted) return;
             setState(() {
-              listOfAlerts = alerts;
-              svgData = v;
-              error = null;
+              error = state.failure.toString();
             });
-          }
-          if (state is ErrorState) {
-            if (!mounted) return;
-            setState(() => error = state.failure.toString());
           }
         },
         child: SafeArea(
@@ -147,10 +92,10 @@ class _MainScreenState extends State<MainScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 18),
-                        Text(
+                        const Text(
                           "Дата",
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 247, 135, 50),
+                            color: Color.fromARGB(255, 247, 135, 50),
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2,
@@ -159,16 +104,16 @@ class _MainScreenState extends State<MainScreen> {
                         SizedBox(
                           height: 5,
                           width: constraints.maxWidth / 8,
-                          child: Divider(
+                          child: const Divider(
                             height: 2,
-                            color: const Color.fromARGB(74, 87, 87, 87),
+                            color: Color.fromARGB(74, 87, 87, 87),
                           ),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           formattedDate,
-                          style: TextStyle(
-                            color: const Color.fromARGB(255, 206, 113, 42),
+                          style: const TextStyle(
+                            color: Color.fromARGB(255, 206, 113, 42),
                             fontSize: 14,
                             letterSpacing: 1.2,
                           ),
@@ -176,17 +121,17 @@ class _MainScreenState extends State<MainScreen> {
                         SizedBox(
                           height: 5,
                           width: constraints.maxWidth / 2.7,
-                          child: Divider(
+                          child: const Divider(
                             height: 2,
-                            color: const Color.fromARGB(74, 87, 87, 87),
+                            color: Color.fromARGB(74, 87, 87, 87),
                           ),
                         ),
 
                         const SizedBox(height: 5),
-                        Text(
+                        const Text(
                           "Ваше місцезнаходження:",
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 247, 135, 50),
+                            color: Color.fromARGB(255, 247, 135, 50),
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2,
@@ -195,17 +140,17 @@ class _MainScreenState extends State<MainScreen> {
                         SizedBox(
                           height: 5,
                           width: constraints.maxWidth / 1.7,
-                          child: Divider(
+                          child: const Divider(
                             height: 2,
-                            color: const Color.fromARGB(74, 87, 87, 87),
+                            color: Color.fromARGB(74, 87, 87, 87),
                           ),
                         ),
 
                         const SizedBox(height: 5),
-                        Text(
+                        const Text(
                           "Звенигородка",
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 206, 113, 42),
+                            color: Color.fromARGB(255, 206, 113, 42),
                             fontSize: 14,
                             letterSpacing: 1.2,
                           ),
@@ -213,11 +158,22 @@ class _MainScreenState extends State<MainScreen> {
                         SizedBox(
                           height: 5,
                           width: constraints.maxWidth / 3.6,
-                          child: Divider(
+                          child: const Divider(
                             height: 2,
-                            color: const Color.fromARGB(74, 87, 87, 87),
+                            color: Color.fromARGB(74, 87, 87, 87),
                           ),
                         ),
+
+                        if (error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            error!,
+                            style: const TextStyle(
+                              color: Color.fromARGB(255, 255, 120, 80),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -244,67 +200,6 @@ class _MainScreenState extends State<MainScreen> {
                             ),
                     ),
                   ),
-
-                  // Bottom bar
-                  // Align(
-                  //   alignment: Alignment.bottomCenter,
-                  //   child: SizedBox(
-                  //     height: 80,
-                  //     child: GradientTopBottomBorder(
-                  //       borderWidth: 2,
-                  //       radius: 0,
-                  //       topGradient: const LinearGradient(
-                  //         begin: Alignment.centerLeft,
-                  //         end: Alignment.centerRight,
-                  //         colors: [
-                  //           Color.fromARGB(72, 232, 136, 27),
-                  //           Color.fromARGB(255, 43, 25, 5),
-                  //           Color.fromARGB(255, 57, 33, 6),
-                  //           Color.fromARGB(66, 232, 136, 27),
-                  //         ],
-                  //         stops: [0.01, 0.15, 0.8, 1.0],
-                  //       ),
-                  //       bottomGradient: const LinearGradient(
-                  //         begin: Alignment.centerLeft,
-                  //         end: Alignment.centerRight,
-                  //         colors: [
-                  //           Color.fromARGB(72, 232, 136, 27),
-                  //           Color.fromARGB(255, 57, 33, 6),
-                  //           Color.fromARGB(255, 45, 26, 5),
-                  //           Color.fromARGB(66, 232, 136, 27),
-                  //         ],
-                  //         stops: [0.1, 0.45, 0.8, 1.0],
-                  //       ),
-                  //       sideColor: Colors.transparent,
-                  //       child: Row(
-                  //         crossAxisAlignment: CrossAxisAlignment.center,
-                  //         mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  //         children: [
-                  //           _BottomItem(
-                  //             icon: Icons.crisis_alert_outlined,
-                  //             label: "Тривоги",
-                  //           ),
-                  //           _BottomItem(icon: Icons.map, label: "Мапа"),
-                  //           _BottomItem(
-                  //             icon: Icons.info_outline_rounded,
-                  //             label: "Корисне",
-                  //           ),
-                  //           GestureDetector(
-                  //             onTap: () async {
-                  //               await FirebaseMessaging.instance
-                  //                   .subscribeToTopic('raion_150');
-                  //               debugPrint('✅ subscribed to raion_150');
-                  //             },
-                  //             child: _BottomItem(
-                  //               icon: Icons.settings_outlined,
-                  //               label: "Налаштування",
-                  //             ),
-                  //           ),
-                  //         ],
-                  //       ),
-                  //     ),
-                  //   ),
-                  // ),
                 ],
               ),
             ),
@@ -314,34 +209,14 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // ❗️dispose без StopPolling. Polling глобальний.
   @override
   void dispose() {
-    context.read<AlarmBloc>().add(StopPollingEvent());
     super.dispose();
   }
 }
 
-class _BottomItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _BottomItem({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    const c = Color.fromARGB(255, 186, 103, 38);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: c),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: c)),
-      ],
-    );
-  }
-}
-
-/// ====== SVG helpers ======
+/* ================= SVG helpers ================= */
 
 String stripSvgNamespaces(String svg) {
   svg = svg.replaceAll(RegExp(r'\sxmlns:\w+="[^"]*"'), '');
@@ -352,7 +227,6 @@ String stripSvgNamespaces(String svg) {
   return svg;
 }
 
-/// ✅ прибираємо те, що flutter_svg часто не підтримує / ламає
 String sanitizeSvgForFlutter(String svg) {
   svg = svg.replaceAll(RegExp(r'<!DOCTYPE[\s\S]*?>', multiLine: true), '');
   svg = svg.replaceAll(
@@ -375,7 +249,6 @@ String sanitizeSvgForFlutter(String svg) {
   return svg;
 }
 
-/// ✅ робимо непрозорими ВСІ групи, де є fill-opacity=".70196"
 String forceAllLabelGroupsOpaque(String svg) {
   svg = svg.replaceAllMapped(
     RegExp(r'<(\w+:)?g([^>]*\bfill-opacity="\.70196"[^>]*)>', multiLine: true),
@@ -452,12 +325,10 @@ String forceStrokesStaticish(String svg) {
   return svg;
 }
 
-/// ✅ ПІДСВІТКА БАГАТЬОХ РАЙОНІВ по числових id (150,152,...)
 Future<String> highlightRaionsSvgByIds({
   required String assetPath,
   required List<int> raionIds,
   String fillHex = '#FF5252',
-  //String strokeHex = '#FF5252',
   double strokeWidth = 6,
 }) async {
   String svg = await rootBundle.loadString(assetPath);
@@ -468,10 +339,8 @@ Future<String> highlightRaionsSvgByIds({
   svg = forceStrokesStaticish(svg);
 
   final ids = raionIds.map((e) => e.toString()).toSet();
-
   int painted = 0;
 
-  // ✅ Проходимось по всіх <path ...> і фарбуємо тільки ті, де id в ids
   svg = svg.replaceAllMapped(
     RegExp(
       r'<path\b[^>]*\bid="([^"]+)"[^>]*\/?>',
@@ -486,7 +355,6 @@ Future<String> highlightRaionsSvgByIds({
 
       painted++;
 
-      // чистимо, щоб нічого не перебивало (fill="none", style, stroke...)
       tag = tag.replaceAll(RegExp(r'\sstyle="[^"]*"'), '');
       tag = tag.replaceAll(RegExp(r'\sfill="[^"]*"'), '');
       tag = tag.replaceAll(RegExp(r'\sfill-opacity="[^"]*"'), '');
@@ -494,10 +362,8 @@ Future<String> highlightRaionsSvgByIds({
       tag = tag.replaceAll(RegExp(r'\sstroke-width="[^"]*"'), '');
       tag = tag.replaceAll(RegExp(r'\sstroke-opacity="[^"]*"'), '');
 
-      // ✅ додаємо і fill і style (щоб точно взялося у flutter_svg)
       final inject =
           ' fill="$fillHex" fill-opacity="1" '
-          // 'stroke="$strokeHex" stroke-opacity="1" stroke-width="$strokeWidth" '
           'style="fill:$fillHex;fill-opacity:1;stroke-width:$strokeWidth;stroke-opacity:1;"';
 
       if (tag.trim().endsWith('/>')) {

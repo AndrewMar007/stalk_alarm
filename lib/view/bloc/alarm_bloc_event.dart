@@ -2,9 +2,9 @@ abstract class AlarmBlocEvent {}
 
 class GetCurrentAlarmEvent extends AlarmBlocEvent {}
 
-class StartPollingEvent extends AlarmBlocEvent {
-  final Duration interval;
-  StartPollingEvent({required this.interval});
+class StartAlarmPollingEvent extends AlarmBlocEvent {
+  final int intervalMs;
+  StartAlarmPollingEvent({this.intervalMs = 15000});
 }
 
-class StopPollingEvent extends AlarmBlocEvent {}
+class StopAlarmPollingEvent extends AlarmBlocEvent {}
