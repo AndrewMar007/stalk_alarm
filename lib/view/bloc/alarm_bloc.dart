@@ -11,19 +11,37 @@ class AlarmBloc extends Bloc<AlarmBlocEvent, AlarmBlocState> {
   Timer? _timer;
 
   AlarmBloc({required this.getCurrentAlarmUseCase}) : super(InitState()) {
-    on<GetCurrentAlarmEvent>(_onGetCurrentAlarm);
+    on<GetCurrentAlarmEvent>(_onGetCurrentAlarmHard);
+    on<SoftRefreshAlarmEvent>(_onGetCurrentAlarmSoft);
     on<StartAlarmPollingEvent>(_onStartPolling);
     on<StopAlarmPollingEvent>(_onStopPolling);
   }
 
-  Future<void> _onGetCurrentAlarm(
+  // ✅ HARD: якщо треба примусово показати помилку
+  Future<void> _onGetCurrentAlarmHard(
     GetCurrentAlarmEvent event,
     Emitter<AlarmBlocState> emit,
   ) async {
-    // Якщо не хочеш миготіння Loading кожні 15с — не емить Loading при background poll
     final data = await getCurrentAlarmUseCase.call(NoParams());
     data.fold(
       (failure) => emit(ErrorState(failure: failure)),
+      (alarm) => emit(LoadedState(alarmList: alarm)),
+    );
+  }
+
+  // ✅ SOFT: якщо впав інтернет, але дані вже були — не ламаємо UI
+  Future<void> _onGetCurrentAlarmSoft(
+    SoftRefreshAlarmEvent event,
+    Emitter<AlarmBlocState> emit,
+  ) async {
+    final data = await getCurrentAlarmUseCase.call(NoParams());
+
+    data.fold(
+      (failure) {
+        // якщо дані вже були — не емитимо Error
+        if (state is LoadedState) return;
+        emit(ErrorState(failure: failure));
+      },
       (alarm) => emit(LoadedState(alarmList: alarm)),
     );
   }
@@ -34,11 +52,11 @@ class AlarmBloc extends Bloc<AlarmBlocEvent, AlarmBlocState> {
   ) {
     _timer?.cancel();
 
-    // одразу перший запит
-    add(GetCurrentAlarmEvent());
+    // перший запит одразу (soft)
+    add(SoftRefreshAlarmEvent());
 
     _timer = Timer.periodic(Duration(milliseconds: event.intervalMs), (_) {
-      add(GetCurrentAlarmEvent());
+      add(SoftRefreshAlarmEvent());
     });
   }
 

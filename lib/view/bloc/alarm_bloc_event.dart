@@ -8,3 +8,4 @@ class StartAlarmPollingEvent extends AlarmBlocEvent {
 }
 
 class StopAlarmPollingEvent extends AlarmBlocEvent {}
+class SoftRefreshAlarmEvent extends AlarmBlocEvent {}

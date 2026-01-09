@@ -14,6 +14,7 @@ class RaionsListPage extends StatefulWidget {
   @override
   State<RaionsListPage> createState() => _RaionsListPageState();
 }
+
 const bottomGradient = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -80,9 +81,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 20, 11, 2),
+      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 20, 11, 2),
+        backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
         actions: [
           IconButton(
@@ -106,8 +107,28 @@ class _RaionsListPageState extends State<RaionsListPage> {
           ),
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Positioned(
+            left: -50,
+            right: -50,
+            top: -50,
+            bottom: -50,
+            child: Image(
+              image: AssetImage("assets/back.png"),
+              color: const Color.fromARGB(32, 41, 41, 41),
+            ),
+          ),
+          Positioned(
+            left: -350,
+            right: -350,
+            bottom: -250,
+            top: -100,
+            child: Image(
+              image: AssetImage("assets/radiation.png"),
+              color: const Color.fromARGB(17, 55, 27, 6),
+            ),
+          ),
           SizedBox(
             height: 2, // товщина лінії
             width: double.infinity,
@@ -115,146 +136,137 @@ class _RaionsListPageState extends State<RaionsListPage> {
               decoration: BoxDecoration(gradient: bottomGradient),
             ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constrains) {
-                if (_loadingLocal) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (_listOfUnits.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "Нічого не вибрано",
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 248, 165, 101),
-                      ),
-                    ),
-                  );
-                }
+          LayoutBuilder(
+            builder: (context, constrains) {
+              if (_loadingLocal) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (_listOfUnits.isEmpty) {
+                return const Center(
+                  child: Text(
+                    "Нічого не вибрано",
+                    style: TextStyle(color: Color.fromARGB(255, 248, 165, 101)),
+                  ),
+                );
+              }
 
-                return BlocBuilder<AlarmBloc, AlarmBlocState>(
-                  builder: (context, state) {
-                    // ✅ активні райони (числові uid як строки)
-                    final activeRaionUids = <String>{};
+              return BlocBuilder<AlarmBloc, AlarmBlocState>(
+                builder: (context, state) {
+                  // ✅ активні райони (числові uid як строки)
+                  final activeRaionUids = <String>{};
 
-                    // ✅ активні області (по назві області)
-                    final activeOblastTitles = <String>{};
+                  // ✅ активні області (по назві області)
+                  final activeOblastTitles = <String>{};
 
-                    if (state is LoadedState) {
-                      for (final a in state.alarmList) {
-                        // якщо finishedAt null => тривога активна
-                        if (a.finishedAt != null) continue;
+                  if (state is LoadedState) {
+                    for (final a in state.alarmList) {
+                      // якщо finishedAt null => тривога активна
+                      if (a.finishedAt != null) continue;
 
-                        // ✅ область активна, якщо є ХОЧА Б ОДИН активний алерт в ній
-                        // (raion / hromada / city / oblast — не важливо)
-                        activeOblastTitles.add(a.locationOblast);
+                      // ✅ область активна, якщо є ХОЧА Б ОДИН активний алерт в ній
+                      // (raion / hromada / city / oblast — не важливо)
+                      activeOblastTitles.add(a.locationOblast);
 
-                        // ✅ район активний лише коли location_type == raion
-                        if (a.locationType == 'raion') {
-                          final uid = _stripPrefix(a.locationUid.toString());
-                          activeRaionUids.add(uid);
-                        }
+                      // ✅ район активний лише коли location_type == raion
+                      if (a.locationType == 'raion') {
+                        final uid = _stripPrefix(a.locationUid.toString());
+                        activeRaionUids.add(uid);
                       }
                     }
+                  }
 
-                    return ListView.separated(
-                      itemCount: _listOfUnits.length,
-                      itemBuilder: (context, index) {
-                        final unit = _listOfUnits[index];
+                  return ListView.separated(
+                    itemCount: _listOfUnits.length,
+                    itemBuilder: (context, index) {
+                      final unit = _listOfUnits[index];
 
-                        final active = _isActiveByUnit(
-                          unit,
-                          activeRaionUids,
-                          activeOblastTitles,
-                        );
+                      final active = _isActiveByUnit(
+                        unit,
+                        activeRaionUids,
+                        activeOblastTitles,
+                      );
 
-                        return ListTile(
-                          tileColor: const Color.fromARGB(4, 249, 189, 25),
-                          leading: SizedBox(
-                            height: constrains.maxHeight * 0.06,
-                            child: const Image(
-                              image: AssetImage('assets/bullet.png'),
-                              color: Color.fromARGB(255, 224, 125, 15),
-                            ),
+                      return ListTile(
+                        tileColor: const Color.fromARGB(4, 249, 189, 25),
+                        leading: SizedBox(
+                          height: constrains.maxHeight * 0.06,
+                          child: const Image(
+                            image: AssetImage('assets/bullet.png'),
+                            color: Color.fromARGB(255, 224, 125, 15),
                           ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _titleOfUnit(unit),
-                                  style: const TextStyle(
-                                    color: Color.fromARGB(255, 248, 137, 41),
-                                    fontSize: 16,
-                                  ),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _titleOfUnit(unit),
+                                style: const TextStyle(
+                                  color: Color.fromARGB(255, 248, 137, 41),
+                                  fontSize: 16,
                                 ),
                               ),
-                              const Icon(
-                                Icons.arrow_forward,
-                                color: Color.fromARGB(255, 154, 83, 21),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Color.fromARGB(255, 154, 83, 21),
+                            ),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: EdgeInsets.only(
+                            top: constrains.maxHeight * 0.015,
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                active
+                                    ? "В даному регіоні триває викид"
+                                    : "В даному регіоні немає викиду",
+                                style: TextStyle(
+                                  color: active
+                                      ? const Color.fromARGB(255, 255, 120, 80)
+                                      : const Color.fromARGB(255, 154, 83, 21),
+                                  fontSize: 12,
+                                  fontWeight: active
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                              const Spacer(),
+                              const Text(
+                                "Відстежується",
+                                style: TextStyle(
+                                  color: Color.fromARGB(255, 154, 83, 21),
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
-                          subtitle: Padding(
-                            padding: EdgeInsets.only(
-                              top: constrains.maxHeight * 0.015,
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  active
-                                      ? "В даному регіоні триває викид"
-                                      : "В даному регіоні немає викиду",
-                                  style: TextStyle(
-                                    color: active
-                                        ? const Color.fromARGB(
-                                            255,
-                                            255,
-                                            120,
-                                            80,
-                                          )
-                                        : const Color.fromARGB(
-                                            255,
-                                            154,
-                                            83,
-                                            21,
-                                          ),
-                                    fontSize: 12,
-                                    fontWeight: active
-                                        ? FontWeight.w700
-                                        : FontWeight.w400,
-                                  ),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (_) => RaionsInfoPage(
+                                unit: unit,
+                                isActiveAlarm: _isActiveByUnit(
+                                  unit,
+                                  activeRaionUids,
+                                  activeOblastTitles,
                                 ),
-                                const Spacer(),
-                                const Text(
-                                  "Відстежується",
-                                  style: TextStyle(
-                                    color: Color.fromARGB(255, 154, 83, 21),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              CupertinoPageRoute(
-                                builder: (_) => RaionsInfoPage(unit: unit),
                               ),
-                            );
-                          },
-                        );
-                      },
-                      separatorBuilder: (_, __) => Container(
-                        height: 2,
-                        decoration:  BoxDecoration(
-                      gradient: bottomGradient,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    separatorBuilder: (_, __) => Container(
+                      height: 2,
+                      decoration: BoxDecoration(gradient: bottomGradient),
                     ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                  );
+                },
+              );
+            },
           ),
         ],
       ),

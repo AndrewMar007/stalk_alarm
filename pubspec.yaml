@@ -79,6 +79,8 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   assets:
+    - assets/megaphone.png
+    - assets/radiation.png
     - assets/bullet.png
     - assets/back.png
     - assets/geo/ukr_adm1_oblasts.geojson

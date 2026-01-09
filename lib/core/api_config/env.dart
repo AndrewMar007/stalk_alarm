@@ -6,7 +6,7 @@ class Env{
   static String get baseUrl{
     switch(current) {
       case Environment.dev:
-      return "http://192.168.1.23:3000/api";
+      return "https://stalk-alarm-proxy-api.onrender.com/api";
       case Environment.prod:
       return "";
     }

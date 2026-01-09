@@ -9,7 +9,12 @@ import '../../../models/admin_units.dart';
 
 class RaionsInfoPage extends StatefulWidget {
   final SavedAdminUnit unit;
-  const RaionsInfoPage({super.key, required this.unit});
+  final bool isActiveAlarm;
+  const RaionsInfoPage({
+    super.key,
+    required this.unit,
+    required this.isActiveAlarm,
+  });
 
   @override
   State<RaionsInfoPage> createState() => _RaionsInfoPageState();
@@ -50,11 +55,11 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 20, 11, 2),
+      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(255, 20, 11, 2),
+      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Color.fromARGB(255, 255, 170, 105)),
+        iconTheme: IconThemeData(color: Color.fromARGB(255, 224, 125, 15)),
         actions: [
           IconButton(
             onPressed: () async {
@@ -79,7 +84,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
             },
             icon: Icon(
               Icons.delete_outline,
-              color: Color.fromARGB(255, 255, 170, 105),
+              color: Color.fromARGB(255, 224, 125, 15),
             ),
           ),
         ],
@@ -91,59 +96,92 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
           ),
         ),
       ),
-      body: Column(
+      body: Stack(
+        alignment: AlignmentGeometry.center,
         children: [
+          Positioned(
+            left: -50,
+            right: -50,
+            top: -50,
+            bottom: -50,
+            child: Image(
+              image: AssetImage("assets/back.png"),
+              color: const Color.fromARGB(32, 41, 41, 41),
+            ),
+          ),
+          Positioned(
+            left: -350,
+            right: -350,
+            bottom: -250,
+            top: -100,
+            child: Image(
+              image: AssetImage("assets/radiation.png"),
+              color: const Color.fromARGB(17, 55, 27, 6),
+            ),
+          ),
           // 🔥 ГРАДІЄНТ ПІД APPBAR
-          SizedBox(
-            height: 2, // товщина лінії
-            width: double.infinity,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(gradient: bottomGradient),
+          Align(
+            alignment: AlignmentGeometry.topCenter,
+            child: SizedBox(
+              height: 2, // товщина лінії
+              width: double.infinity,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(gradient: bottomGradient),
+              ),
             ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(height: constraints.maxHeight * 0.03),
-                    Text(
-                      _titleOfUnit(widget.unit),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        
-                        color: Color.fromARGB(255, 247, 135, 50),
-                        fontSize: 20,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  SizedBox(height: constraints.maxHeight * 0.03),
+                  Text(
+                    _titleOfUnit(widget.unit),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color.fromARGB(255, 247, 135, 50),
+                      fontSize: 20,
+                    ),
+                  ),
+                  SizedBox(height: constraints.maxHeight * 0.03),
+          
+                  Column(
+                    children: [
+                      Image(
+                        image: AssetImage("assets/megaphone.png"),
+                        color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
+                        height: constraints.maxHeight * 0.3,
+                        fit: BoxFit.cover,
+                        width: constraints.maxWidth * 0.6,
                       ),
-                    ),
-                    SizedBox(height: constraints.maxHeight * 0.03),
-
-                    Column(
-                      children: [
-                        Icon(
-                          Icons.task_alt_outlined,
-                          color: Color.fromARGB(255, 247, 135, 50),
-                          size: 120,
+                      SizedBox(height: constraints.maxHeight * 0.03),
+                      Text(
+                        widget.isActiveAlarm
+                            ? "Увага! У вашому регіоні викид!"
+                            : "Викиду немає",
+                        style: TextStyle(
+                          color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
+                          fontSize: 20,
                         ),
-                        SizedBox(height: constraints.maxHeight * 0.03),
-                        Text(
-                          "Немає викиду",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 247, 135, 50),
-                            fontSize: 20,
-                          ),
+                      ),
+                      SizedBox(height: constraints.maxHeight * 0.03),
+          
+                      Text(
+                        widget.isActiveAlarm
+                            ? "Пройдіть в найближче укриття!"
+                            : "Слідкуйте за подальшими оновленнями",
+                        style: TextStyle(
+                          color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
                         ),
-                        SizedBox(height: constraints.maxHeight * 0.03),
-
-                        Text("Слідкуйте за подальшими оновленнями", style: TextStyle(color: Color.fromARGB(255, 247, 135, 50)),),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
+        
           // КОНТЕНТ
           // Expanded(
           //   child: LayoutBuilder(

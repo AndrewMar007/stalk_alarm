@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -8,10 +9,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc_event.dart';
-import 'package:stalc_alarm/view/screens/main_screen.dart';
 import 'package:stalc_alarm/view/screens/router/cupertino_bottom_navigation_bar.dart';
-import 'firebase_options.dart';
 
+import 'firebase_options.dart';
 import 'injection_container.dart' as di;
 
 // ===== Local notifications plugin =====
@@ -24,41 +24,36 @@ const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
   description: 'Air alarm notifications',
   importance: Importance.max,
   playSound: true,
-  sound: RawResourceAndroidNotificationSound('alarm'), // alarm.mp3 -> 'alarm'
+  sound: RawResourceAndroidNotificationSound('alarm'),
 );
 
-// ===== Background handler (works for data-only pushes) =====
+// ===== Background handler =====
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  final token = await FirebaseMessaging.instance.getToken();
-  debugPrint("FCM TOKEN = $token");
-
-  // For data-only messages: show local notification here.
-  // If you send "notification" payload, Android may show it automatically,
-  // but this keeps behavior consistent.
   await _showLocalNotification(message);
 }
 
 Future<void> _showLocalNotification(RemoteMessage message) async {
-  final title =
-      message.data['title'] ?? message.notification?.title ?? 'Тривога';
-  final body =
-      message.data['body'] ?? message.notification?.body ?? 'Повітряна тривога';
+  // ✅ якщо це notification-пуш (а не data-only) — НЕ показуємо локалку, інакше буде дубль
+  if (message.notification != null) return;
+
+  final title = (message.data['title'] ?? 'Stalk Alarm').toString();
+  final body  = (message.data['body']  ?? 'Повітряна тривога').toString();
 
   await fln.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
     title,
     body,
-    NotificationDetails(
+    const NotificationDetails(
       android: AndroidNotificationDetails(
-        alarmChannel.id,
-        alarmChannel.name,
-        channelDescription: alarmChannel.description,
+        'air_alarm_channel',
+        'Air Alarm',
+        channelDescription: 'Air alarm notifications',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
-        sound: const RawResourceAndroidNotificationSound('alarm'),
+        sound: RawResourceAndroidNotificationSound('alarm'),
         category: AndroidNotificationCategory.alarm,
         fullScreenIntent: true,
       ),
@@ -66,37 +61,28 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
   );
 }
 
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ init DI first (GetIt registrations)
+  // ✅ DI
   await di.init();
 
-  // ✅ Firebase init
+  // ✅ Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  final tok = await FirebaseMessaging.instance.getToken();
-  debugPrint("FCM TOKEN = $tok");
-  // ✅ Background messages
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // ✅ Local notifications init + create Android channel
+  // ✅ Local notifications init + channel
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await fln.initialize(const InitializationSettings(android: androidInit));
 
   await fln
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >()
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(alarmChannel);
 
-  // ✅ Ask permission (iOS + Android 13+)
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  final token = await FirebaseMessaging.instance.getToken();
-  debugPrint("FCM TOKEN: $token");
+  // ✅ Permissions
+  await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+
   runApp(const AppRoot());
 }
 
@@ -107,21 +93,54 @@ class AppRoot extends StatefulWidget {
   State<AppRoot> createState() => _AppRootState();
 }
 
-class _AppRootState extends State<AppRoot> {
+class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
+  Timer? _resumeDebounce;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
-    // Foreground: when message arrives while app is open
+    // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       await _showLocalNotification(message);
     });
 
-    // When user taps the notification and opens the app
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // TODO: you can navigate to a specific screen if needed
-      // Example: Navigator.of(context).push(...)
+      // TODO: navigate if needed
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Тут ми контролюємо polling, щоб:
+    // - не робити запити в background
+    // - після resume дати Render 2 сек “прокинутись”
+    final bloc = context.read<AlarmBloc>();
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      bloc.add(StopAlarmPollingEvent());
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      bloc.add(StopAlarmPollingEvent());
+
+      _resumeDebounce?.cancel();
+      _resumeDebounce = Timer(const Duration(seconds: 2), () {
+        bloc.add(SoftRefreshAlarmEvent()); // один м’який refresh без зносу state
+        bloc.add(StartAlarmPollingEvent(intervalMs: 15000)); // і назад polling
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _resumeDebounce?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -129,9 +148,8 @@ class _AppRootState extends State<AppRoot> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) =>
-              AlarmBloc(getCurrentAlarmUseCase: di.sl())
-                ..add(StartAlarmPollingEvent(intervalMs: 15000)),
+          create: (_) => AlarmBloc(getCurrentAlarmUseCase: di.sl())
+            ..add(StartAlarmPollingEvent(intervalMs: 15000)),
         ),
       ],
       child: const MyApp(),
@@ -145,7 +163,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Stalc Alarm',
+      title: 'Stalk Alarm',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,

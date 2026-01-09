@@ -26,10 +26,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _updateSvgFromAlerts(List<AlertModel> alerts) async {
     // ⚠️ Ти використовуєш locationOblastUid як id для path'ів — ок, лишаємо як є.
-    final ids = alerts
-        .map((e) => e.locationOblastUid)
-        .whereType<int>()
-        .toSet();
+    final ids = alerts.map((e) => e.locationOblastUid).whereType<int>().toSet();
 
     // якщо нічого не змінилось — не перегенеровуємо SVG
     if (setEquals(ids, _lastIds) && svgData != null) return;
@@ -87,97 +84,273 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   // Верхній HUD
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(height: 18),
-                        const Text(
-                          "Дата",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 247, 135, 50),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 5,
-                          width: constraints.maxWidth / 8,
-                          child: const Divider(
-                            height: 2,
-                            color: Color.fromARGB(74, 87, 87, 87),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          formattedDate,
-                          style: const TextStyle(
-                            color: Color.fromARGB(255, 206, 113, 42),
-                            fontSize: 14,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 5,
-                          width: constraints.maxWidth / 2.7,
-                          child: const Divider(
-                            height: 2,
-                            color: Color.fromARGB(74, 87, 87, 87),
-                          ),
-                        ),
 
-                        const SizedBox(height: 5),
-                        const Text(
-                          "Ваше місцезнаходження:",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 247, 135, 50),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 5,
-                          width: constraints.maxWidth / 1.7,
-                          child: const Divider(
-                            height: 2,
-                            color: Color.fromARGB(74, 87, 87, 87),
-                          ),
-                        ),
+                        // const Text(
+                        //   "Дата",
+                        //   style: TextStyle(
+                        //     color: Color.fromARGB(255, 247, 135, 50),
+                        //     fontSize: 18,
+                        //     fontWeight: FontWeight.w800,
+                        //     letterSpacing: 2,
+                        //   ),
+                        // ),
+                        // SizedBox(
+                        //   height: 5,
+                        //   width: constraints.maxWidth / 8,
+                        //   child: const Divider(
+                        //     height: 2,
+                        //     color: Color.fromARGB(74, 87, 87, 87),
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 5),
+                        // Text(
+                        //   formattedDate,
+                        //   style: const TextStyle(
+                        //     color: Color.fromARGB(255, 206, 113, 42),
+                        //     fontSize: 14,
+                        //     letterSpacing: 1.2,
+                        //   ),
+                        // ),
+                        // SizedBox(
+                        //   height: 5,
+                        //   width: constraints.maxWidth / 2.7,
+                        //   child: const Divider(
+                        //     height: 2,
+                        //     color: Color.fromARGB(74, 87, 87, 87),
+                        //   ),
+                        // ),
 
-                        const SizedBox(height: 5),
-                        const Text(
-                          "Звенигородка",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 206, 113, 42),
-                            fontSize: 14,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 5,
-                          width: constraints.maxWidth / 3.6,
-                          child: const Divider(
-                            height: 2,
-                            color: Color.fromARGB(74, 87, 87, 87),
-                          ),
-                        ),
+                        // const SizedBox(height: 5),
+                        // const Text(
+                        //   "Ваше місцезнаходження:",
+                        //   style: TextStyle(
+                        //     color: Color.fromARGB(255, 247, 135, 50),
+                        //     fontSize: 15,
+                        //     fontWeight: FontWeight.w800,
+                        //     letterSpacing: 2,
+                        //   ),
+                        // ),
+                        // SizedBox(
+                        //   height: 5,
+                        //   width: constraints.maxWidth / 1.7,
+                        //   child: const Divider(
+                        //     height: 2,
+                        //     color: Color.fromARGB(74, 87, 87, 87),
+                        //   ),
+                        // ),
 
-                        if (error != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            error!,
-                            style: const TextStyle(
-                              color: Color.fromARGB(255, 255, 120, 80),
-                              fontSize: 12,
+                        // const SizedBox(height: 5),
+                        // const Text(
+                        //   "Звенигородка",
+                        //   style: TextStyle(
+                        //     color: Color.fromARGB(255, 206, 113, 42),
+                        //     fontSize: 14,
+                        //     letterSpacing: 1.2,
+                        //   ),
+                        // ),
+                        // SizedBox(
+                        //   height: 5,
+                        //   width: constraints.maxWidth / 3.6,
+                        //   child: const Divider(
+                        //     height: 2,
+                        //     color: Color.fromARGB(74, 87, 87, 87),
+                        //   ),
+                        // ),
+
+                        // if (error != null) ...[
+                        //   const SizedBox(height: 8),
+                        //   Text(
+                        //     error!,
+                        //     style: const TextStyle(
+                        //       color: Color.fromARGB(255, 255, 120, 80),
+                        //       fontSize: 12,
+                        //     ),
+                        //   ),
+                        Container(
+                          height: constraints.maxHeight * 0.25,
+                          width: constraints.maxWidth * 0.92,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Color.fromARGB(255, 247, 135, 50),
                             ),
                           ),
-                        ],
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    height: constraints.maxHeight * 0.15,
+                                    width: constraints.maxWidth * 0.4573,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Color.fromARGB(
+                                          255,
+                                          247,
+                                          135,
+                                          50,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Псі\nвипромінювання",
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          style: TextStyle(
+                                            color: Color.fromARGB(
+                                              255,
+                                              247,
+                                              135,
+                                              50,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: constraints.maxHeight * 0.02,
+                                        ),
+                                        Text(
+                                          "0.09 Псі",
+                                          style: TextStyle(
+                                            color: Color.fromARGB(
+                                              255,
+                                              247,
+                                              135,
+                                              50,
+                                            ),
+                                            fontSize: 17.0,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    height: constraints.maxHeight * 0.15,
+                                    width: constraints.maxWidth * 0.4573,
+
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Color.fromARGB(
+                                          255,
+                                          247,
+                                          135,
+                                          50,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Аномальна\nактивність",
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          style: TextStyle(
+                                            color: Color.fromARGB(
+                                              255,
+                                              247,
+                                              135,
+                                              50,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: constraints.maxHeight * 0.02,
+                                        ),
+
+                                        Text(
+                                          "0.09 Псі",
+                                          style: TextStyle(
+                                            color: Color.fromARGB(
+                                              255,
+                                              247,
+                                              135,
+                                              50,
+                                            ),
+                                            fontSize: 17.0,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                height: constraints.maxHeight * 0.097,
+                                width: constraints.maxWidth * 0.92,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Color.fromARGB(255, 247, 135, 50),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: constraints.maxHeight * 0.01,
+                                    ),
+                                    Text(
+                                      "Дата",
+                                      style: TextStyle(
+                                        color: Color.fromARGB(
+                                          255,
+                                          247,
+                                          135,
+                                          50,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: constraints.maxHeight * 0.01,
+                                    ),
+                                    Text(
+                                      formattedDate,
+                                      style: TextStyle(
+                                        color: Color.fromARGB(
+                                          255,
+                                          247,
+                                          135,
+                                          50,
+                                        ),
+                                        fontSize: 17.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-
+                  Positioned(
+                    left: -50,
+                    right: -50,
+                    top: -50,
+                    bottom: -50,
+                    child: Image(
+                      image: AssetImage("assets/back.png"),
+                      color: const Color.fromARGB(32, 41, 41, 41),
+                    ),
+                  ),
+                  Positioned(
+                    left: -350,
+                    right: -350,
+                    bottom: -250,
+                    top: -100,
+                    child: Image(
+                      image: AssetImage("assets/radiation.png"),
+                      color: const Color.fromARGB(17, 55, 27, 6),
+                    ),
+                  ),
                   // Карта по центру
                   Positioned(
                     left: 0,
