@@ -1,79 +1,90 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-class GradientBorderCupertinoTabBar extends StatelessWidget
-    implements ObstructingPreferredSizeWidget {
-  const GradientBorderCupertinoTabBar({
-    required this.items,
-    required this.onTap,
-    required this.height,
-    required this.backgroundColor,
-    required this.activeColor,
-    required this.inactiveColor,
-    required this.borderWidth,
-    required this.topGradient,
-    required this.bottomGradient,
-  });
-
-  final List<BottomNavigationBarItem> items;
-  final ValueChanged<int> onTap;
-  final double height;
-
-  final Color backgroundColor;
-  final Color activeColor;
-  final Color inactiveColor;
-
-  final double borderWidth;
+class GradientBorderTopBottom extends StatelessWidget {
+  final Widget child;
   final Gradient topGradient;
   final Gradient bottomGradient;
+  final double strokeWidth;
+  final double radius;
 
-  @override
-  Size get preferredSize => Size.fromHeight(height);
-
-  // ✅ важливо для iOS: каже що таббар "закриває" контент за собою
-  @override
-  bool shouldFullyObstruct(BuildContext context) => true;
+  const GradientBorderTopBottom({
+    super.key,
+    required this.child,
+    required this.topGradient,
+    required this.bottomGradient,
+    this.strokeWidth = 2,
+    this.radius = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // сам таббар
-        Positioned.fill(
-          child: CupertinoTabBar(
-            items: items,
-            onTap: onTap,
-            height: height,
-            backgroundColor: backgroundColor,
-            activeColor: activeColor,
-            inactiveColor: inactiveColor,
-            // ❌ вимикаємо стандартний бордер
-            border: const Border(top: BorderSide(color: Colors.transparent, width: 0)),
-          ),
-        ),
-
-        // ✅ TOP градієнтна лінія
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: borderWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(gradient: topGradient),
-          ),
-        ),
-
-        // ✅ BOTTOM градієнтна лінія
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: borderWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(gradient: bottomGradient),
-          ),
-        ),
-      ],
+    return CustomPaint(
+      painter: _TopBottomBorderPainter(
+        topGradient: topGradient,
+        bottomGradient: bottomGradient,
+        strokeWidth: strokeWidth,
+        radius: radius,
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(strokeWidth), // контент не лізе на бордер
+        child: child,
+      ),
     );
+  }
+}
+
+class _TopBottomBorderPainter extends CustomPainter {
+  final Gradient topGradient;
+  final Gradient bottomGradient;
+  final double strokeWidth;
+  final double radius;
+
+  _TopBottomBorderPainter({
+    required this.topGradient,
+    required this.bottomGradient,
+    required this.strokeWidth,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(strokeWidth / 2),
+      Radius.circular(radius),
+    );
+
+    // -------- TOP half --------
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height / 2));
+
+    final topPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..shader = topGradient.createShader(rect);
+
+    canvas.drawRRect(rrect, topPaint);
+    canvas.restore();
+
+    // -------- BOTTOM half --------
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, size.height / 2, size.width, size.height / 2));
+
+    final bottomPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..shader = bottomGradient.createShader(rect);
+
+    canvas.drawRRect(rrect, bottomPaint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _TopBottomBorderPainter oldDelegate) {
+    return oldDelegate.topGradient != topGradient ||
+        oldDelegate.bottomGradient != bottomGradient ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.radius != radius;
   }
 }

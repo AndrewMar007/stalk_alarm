@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +10,9 @@ import 'package:intl/intl.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc_state.dart';
+import 'package:stalc_alarm/view/widgets/gradient_container.dart';
+import 'package:stalc_alarm/view/widgets/gradient_horizontal_divider.dart';
+import 'package:stalc_alarm/view/widgets/gradient_vertical_divider.dart';
 
 import '../../models/alert_model.dart';
 
@@ -17,10 +23,57 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
+const topGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(72, 232, 136, 27),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(66, 232, 136, 27),
+  ],
+  stops: [0.0, 0.6, 0.9, 1.0],
+);
+const bottomGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(72, 232, 136, 27),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(66, 232, 136, 27),
+  ],
+  stops: [0.0, 0.5, 0.8, 1.0],
+);
+const dividerGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(72, 232, 136, 27),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(255, 20, 11, 2),
+    Color.fromARGB(66, 232, 136, 27),
+  ],
+  stops: [0.0, 0.15, 0.2, 1.0],
+);
+
+const verticalGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    Color.fromARGB(72, 232, 136, 27),
+    Color.fromARGB(255, 20, 11, 2),
+  ],
+  stops: [0.0, 1.0],
+);
+
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
   String? error;
-
+  Timer? _timer;
+  late final Stream<double> s1;
+  late final Stream<double> s2;
+  String _time = '';
   // щоб не перемальовувати SVG без потреби
   Set<int> _lastIds = {};
 
@@ -47,18 +100,54 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Stream<double> rangedRandomStream({
+    required double min,
+    required double max,
+  }) {
+    final random = Random();
+
+    return Stream.periodic(const Duration(seconds: 3), (_) {
+      final value = min + random.nextDouble() * (max - min);
+      return double.parse(value.toStringAsFixed(2));
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    s1 = rangedRandomStream(min: 0.0, max: 1.0);
+    s2 = rangedRandomStream(min: 150.0, max: 450.0);
+    _updateTime();
+    _scheduleNextTick();
     // ❗️НЕ стартуємо polling тут.
     // Він має стартувати один раз в main.dart:
     // AlarmBloc(...)..add(StartAlarmPollingEvent(intervalMs: 15000))
   }
 
+  void _scheduleNextTick() {
+    final now = DateTime.now();
+    final secondsUntilNextMinute = 60 - now.second;
+
+    _timer = Timer(Duration(seconds: secondsUntilNextMinute), () {
+      _updateTime();
+
+      // після першого тіку — кожну хвилину
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+        _updateTime();
+      });
+    });
+  }
+
+  void _updateTime() {
+    setState(() {
+      _time = DateFormat('HH:mm').format(DateTime.now());
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final formattedDate = DateFormat.yMMMMd('en_US').format(now);
+    final formattedDate = DateFormat('d MMMM y', 'uk_UA').format(now);
 
     return Scaffold(
       body: BlocListener<AlarmBloc, AlarmBlocState>(
@@ -72,138 +161,143 @@ class _MainScreenState extends State<MainScreen> {
             });
           }
         },
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) => Container(
-              height: constraints.maxHeight,
-              width: constraints.maxWidth,
-              decoration: const BoxDecoration(
-                color: Color.fromARGB(255, 20, 11, 2),
-              ),
-              child: Stack(
-                children: [
-                  // Верхній HUD
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 18),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Container(
+            height: constraints.maxHeight,
+            width: constraints.maxWidth,
+            decoration: const BoxDecoration(
+              color: Color.fromARGB(255, 20, 11, 2),
+            ),
+            child: Stack(
+              children: [
+                // Верхній HUD
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: constraints.maxHeight * 0.07),
 
-                        // const Text(
-                        //   "Дата",
-                        //   style: TextStyle(
-                        //     color: Color.fromARGB(255, 247, 135, 50),
-                        //     fontSize: 18,
-                        //     fontWeight: FontWeight.w800,
-                        //     letterSpacing: 2,
-                        //   ),
-                        // ),
-                        // SizedBox(
-                        //   height: 5,
-                        //   width: constraints.maxWidth / 8,
-                        //   child: const Divider(
-                        //     height: 2,
-                        //     color: Color.fromARGB(74, 87, 87, 87),
-                        //   ),
-                        // ),
-                        // const SizedBox(height: 5),
-                        // Text(
-                        //   formattedDate,
-                        //   style: const TextStyle(
-                        //     color: Color.fromARGB(255, 206, 113, 42),
-                        //     fontSize: 14,
-                        //     letterSpacing: 1.2,
-                        //   ),
-                        // ),
-                        // SizedBox(
-                        //   height: 5,
-                        //   width: constraints.maxWidth / 2.7,
-                        //   child: const Divider(
-                        //     height: 2,
-                        //     color: Color.fromARGB(74, 87, 87, 87),
-                        //   ),
-                        // ),
+                      // const Text(
+                      //   "Дата",
+                      //   style: TextStyle(
+                      //     color: Color.fromARGB(255, 247, 135, 50),
+                      //     fontSize: 18,
+                      //     fontWeight: FontWeight.w800,
+                      //     letterSpacing: 2,
+                      //   ),
+                      // ),
+                      // SizedBox(
+                      //   height: 5,
+                      //   width: constraints.maxWidth / 8,
+                      //   child: const Divider(
+                      //     height: 2,
+                      //     color: Color.fromARGB(74, 87, 87, 87),
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 5),
+                      // Text(
+                      //   formattedDate,
+                      //   style: const TextStyle(
+                      //     color: Color.fromARGB(255, 206, 113, 42),
+                      //     fontSize: 14,
+                      //     letterSpacing: 1.2,
+                      //   ),
+                      // ),
+                      // SizedBox(
+                      //   height: 5,
+                      //   width: constraints.maxWidth / 2.7,
+                      //   child: const Divider(
+                      //     height: 2,
+                      //     color: Color.fromARGB(74, 87, 87, 87),
+                      //   ),
+                      // ),
 
-                        // const SizedBox(height: 5),
-                        // const Text(
-                        //   "Ваше місцезнаходження:",
-                        //   style: TextStyle(
-                        //     color: Color.fromARGB(255, 247, 135, 50),
-                        //     fontSize: 15,
-                        //     fontWeight: FontWeight.w800,
-                        //     letterSpacing: 2,
-                        //   ),
-                        // ),
-                        // SizedBox(
-                        //   height: 5,
-                        //   width: constraints.maxWidth / 1.7,
-                        //   child: const Divider(
-                        //     height: 2,
-                        //     color: Color.fromARGB(74, 87, 87, 87),
-                        //   ),
-                        // ),
+                      // const SizedBox(height: 5),
+                      // const Text(
+                      //   "Ваше місцезнаходження:",
+                      //   style: TextStyle(
+                      //     color: Color.fromARGB(255, 247, 135, 50),
+                      //     fontSize: 15,
+                      //     fontWeight: FontWeight.w800,
+                      //     letterSpacing: 2,
+                      //   ),
+                      // ),
+                      // SizedBox(
+                      //   height: 5,
+                      //   width: constraints.maxWidth / 1.7,
+                      //   child: const Divider(
+                      //     height: 2,
+                      //     color: Color.fromARGB(74, 87, 87, 87),
+                      //   ),
+                      // ),
 
-                        // const SizedBox(height: 5),
-                        // const Text(
-                        //   "Звенигородка",
-                        //   style: TextStyle(
-                        //     color: Color.fromARGB(255, 206, 113, 42),
-                        //     fontSize: 14,
-                        //     letterSpacing: 1.2,
-                        //   ),
-                        // ),
-                        // SizedBox(
-                        //   height: 5,
-                        //   width: constraints.maxWidth / 3.6,
-                        //   child: const Divider(
-                        //     height: 2,
-                        //     color: Color.fromARGB(74, 87, 87, 87),
-                        //   ),
-                        // ),
+                      // const SizedBox(height: 5),
+                      // const Text(
+                      //   "Звенигородка",
+                      //   style: TextStyle(
+                      //     color: Color.fromARGB(255, 206, 113, 42),
+                      //     fontSize: 14,
+                      //     letterSpacing: 1.2,
+                      //   ),
+                      // ),
+                      // SizedBox(
+                      //   height: 5,
+                      //   width: constraints.maxWidth / 3.6,
+                      //   child: const Divider(
+                      //     height: 2,
+                      //     color: Color.fromARGB(74, 87, 87, 87),
+                      //   ),
+                      // ),
 
-                        // if (error != null) ...[
-                        //   const SizedBox(height: 8),
-                        //   Text(
-                        //     error!,
-                        //     style: const TextStyle(
-                        //       color: Color.fromARGB(255, 255, 120, 80),
-                        //       fontSize: 12,
-                        //     ),
-                        //   ),
-                        Container(
-                          height: constraints.maxHeight * 0.25,
-                          width: constraints.maxWidth * 0.92,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Color.fromARGB(255, 247, 135, 50),
-                            ),
-                          ),
+                      // if (error != null) ...[
+                      //   const SizedBox(height: 8),
+                      //   Text(
+                      //     error!,
+                      //     style: const TextStyle(
+                      //       color: Color.fromARGB(255, 255, 120, 80),
+                      //       fontSize: 12,
+                      //     ),
+                      //   ),
+                      GradientBorderTopBottom(
+                        topGradient: topGradient,
+                        bottomGradient: bottomGradient,
+                        strokeWidth: 2,
+                        radius: 0,
+                        child: Container(
+                          height: constraints.maxHeight * 0.163,
+                          width: constraints.maxWidth,
+                          // decoration: BoxDecoration(
+                          //   border: Border.all(
+                          //     color: Color.fromARGB(255, 247, 135, 50),
+                          //   ),
+                          // ),
                           child: Column(
                             children: [
                               Row(
                                 children: [
                                   Container(
-                                    height: constraints.maxHeight * 0.15,
-                                    width: constraints.maxWidth * 0.4573,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Color.fromARGB(
-                                          255,
-                                          247,
-                                          135,
-                                          50,
-                                        ),
-                                      ),
-                                    ),
+                                    height: constraints.maxHeight * 0.1,
+                                    width: constraints.maxWidth * 0.49,
+                                    // decoration: BoxDecoration(
+                                    //   border: Border.all(
+                                    //     color: Color.fromARGB(
+                                    //       255,
+                                    //       247,
+                                    //       135,
+                                    //       50,
+                                    //     ),
+                                    //   ),
+                                    // ),
                                     child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          "Псі\nвипромінювання",
+                                          "Псі-випромінювання",
                                           textAlign: TextAlign.center,
-                                          maxLines: 2,
+
                                           style: TextStyle(
                                             color: Color.fromARGB(
                                               255,
@@ -211,46 +305,57 @@ class _MainScreenState extends State<MainScreen> {
                                               135,
                                               50,
                                             ),
+                                            fontSize: 12,
                                           ),
                                         ),
                                         SizedBox(
-                                          height: constraints.maxHeight * 0.02,
+                                          height: constraints.maxHeight * 0.01,
                                         ),
-                                        Text(
-                                          "0.09 Псі",
-                                          style: TextStyle(
-                                            color: Color.fromARGB(
-                                              255,
-                                              247,
-                                              135,
-                                              50,
-                                            ),
-                                            fontSize: 17.0,
-                                          ),
+                                        StreamBuilder(
+                                          stream: s1,
+                                          builder: (context, asyncSnapshot) {
+                                            return Text(
+                                              "${(asyncSnapshot.data ?? 0).toStringAsFixed(2)} Од",
+                                              style: TextStyle(
+                                                color: Color.fromARGB(
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
+                                                fontSize: 15.0,
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
                                   ),
+                                  GradientVerticalDivider(
+                                    gradient: verticalGradient,
+                                    thickness: 1.5,
+                                    height: constraints.maxHeight * 0.1,
+                                  ),
                                   Container(
-                                    height: constraints.maxHeight * 0.15,
-                                    width: constraints.maxWidth * 0.4573,
+                                    height: constraints.maxHeight * 0.1,
+                                    width: constraints.maxWidth * 0.488,
 
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Color.fromARGB(
-                                          255,
-                                          247,
-                                          135,
-                                          50,
-                                        ),
-                                      ),
-                                    ),
+                                    // decoration: BoxDecoration(
+                                    //   border: Border.all(
+                                    //     color: Color.fromARGB(
+                                    //       255,
+                                    //       247,
+                                    //       135,
+                                    //       50,
+                                    //     ),
+                                    //   ),
+                                    // ),
                                     child: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          "Аномальна\nактивність",
+                                          "Аномальна частота",
                                           textAlign: TextAlign.center,
                                           maxLines: 2,
                                           style: TextStyle(
@@ -260,23 +365,29 @@ class _MainScreenState extends State<MainScreen> {
                                               135,
                                               50,
                                             ),
+                                            fontSize: 12,
                                           ),
                                         ),
                                         SizedBox(
-                                          height: constraints.maxHeight * 0.02,
+                                          height: constraints.maxHeight * 0.01,
                                         ),
 
-                                        Text(
-                                          "0.09 Псі",
-                                          style: TextStyle(
-                                            color: Color.fromARGB(
-                                              255,
-                                              247,
-                                              135,
-                                              50,
-                                            ),
-                                            fontSize: 17.0,
-                                          ),
+                                        StreamBuilder(
+                                          stream: s2,
+                                          builder: (context, asyncSnapshot) {
+                                            return Text(
+                                              "${(asyncSnapshot.data ?? 150).toStringAsFixed(0)} кГц",
+                                              style: TextStyle(
+                                                color: Color.fromARGB(
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
+                                                fontSize: 15.0,
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
@@ -284,34 +395,38 @@ class _MainScreenState extends State<MainScreen> {
                                 ],
                               ),
                               Container(
-                                height: constraints.maxHeight * 0.097,
-                                width: constraints.maxWidth * 0.92,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Color.fromARGB(255, 247, 135, 50),
-                                  ),
-                                ),
+                                height: constraints.maxHeight * 0.06,
+                                width: constraints.maxWidth,
+                                // decoration: BoxDecoration(
+                                //   border: Border.all(
+                                //     color: Color.fromARGB(255, 247, 135, 50),
+                                //   ),
+                                // ),
                                 child: Column(
                                   children: [
                                     SizedBox(
-                                      height: constraints.maxHeight * 0.01,
+                                      height: constraints.maxHeight * 0.005,
                                     ),
-                                    Text(
-                                      "Дата",
-                                      style: TextStyle(
-                                        color: Color.fromARGB(
-                                          255,
-                                          247,
-                                          135,
-                                          50,
-                                        ),
-                                      ),
+                                    // Text(
+                                    //   "Дата",
+                                    //   style: TextStyle(
+                                    //     color: Color.fromARGB(
+                                    //       255,
+                                    //       247,
+                                    //       135,
+                                    //       50,
+                                    //     ),
+                                    //   ),
+                                    // ),
+                                    GradientDivider(
+                                      gradient: dividerGradient,
+                                      thickness: 2,
                                     ),
                                     SizedBox(
                                       height: constraints.maxHeight * 0.01,
                                     ),
                                     Text(
-                                      formattedDate,
+                                      "$formattedDate, $_time",
                                       style: TextStyle(
                                         color: Color.fromARGB(
                                           255,
@@ -328,53 +443,53 @@ class _MainScreenState extends State<MainScreen> {
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    left: -50,
-                    right: -50,
-                    top: -50,
-                    bottom: -50,
-                    child: Image(
-                      image: AssetImage("assets/back.png"),
-                      color: const Color.fromARGB(32, 41, 41, 41),
-                    ),
+                ),
+                Positioned(
+                  left: -50,
+                  right: -50,
+                  top: -50,
+                  bottom: -50,
+                  child: Image(
+                    image: AssetImage("assets/back.png"),
+                    color: const Color.fromARGB(32, 41, 41, 41),
                   ),
-                  Positioned(
-                    left: -350,
-                    right: -350,
-                    bottom: -250,
-                    top: -100,
-                    child: Image(
-                      image: AssetImage("assets/radiation.png"),
-                      color: const Color.fromARGB(17, 55, 27, 6),
-                    ),
+                ),
+                Positioned(
+                  left: -350,
+                  right: -350,
+                  bottom: -250,
+                  top: -100,
+                  child: Image(
+                    image: AssetImage("assets/radiation.png"),
+                    color: const Color.fromARGB(17, 55, 27, 6),
                   ),
-                  // Карта по центру
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 160,
-                    bottom: 80,
-                    child: Center(
-                      child: svgData == null
-                          ? const CircularProgressIndicator()
-                          : InteractiveViewer(
-                              constrained: true,
-                              clipBehavior: Clip.hardEdge,
-                              minScale: 1,
-                              maxScale: 3.5,
-                              child: SvgPicture.string(
-                                svgData!,
-                                fit: BoxFit.contain,
-                                allowDrawingOutsideViewBox: false,
-                              ),
+                ),
+                // Карта по центру
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 180,
+                  bottom: 0,
+                  child: Center(
+                    child: svgData == null
+                        ? const CircularProgressIndicator()
+                        : InteractiveViewer(
+                            constrained: true,
+                            clipBehavior: Clip.hardEdge,
+                            minScale: 1,
+                            maxScale: 3.5,
+                            child: SvgPicture.string(
+                              svgData!,
+                              fit: BoxFit.contain,
+                              allowDrawingOutsideViewBox: false,
                             ),
-                    ),
+                          ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -385,6 +500,7 @@ class _MainScreenState extends State<MainScreen> {
   // ❗️dispose без StopPolling. Polling глобальний.
   @override
   void dispose() {
+    _timer?.cancel();
     super.dispose();
   }
 }

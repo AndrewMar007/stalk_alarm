@@ -34,6 +34,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
 
   Future<void> loadLocalData() async {
     final data = await _storage.loadAll();
+    //debugPrint(data[1].oblastUid);
     if (!mounted) return;
     setState(() {
       _listOfUnits = data;
@@ -83,8 +84,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 23, 13, 2),
+        backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
         centerTitle: true,
+        
         actions: [
           IconButton(
             onPressed: () async {
