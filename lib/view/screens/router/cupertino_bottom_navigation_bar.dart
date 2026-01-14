@@ -23,7 +23,7 @@ class _CupertinoBottomBarState extends State<CupertinoBottomBar> {
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors.black, // Android only
+        statusBarColor: Colors.transparent, // Android only
         statusBarIconBrightness: Brightness.light, // Android іконки
         statusBarBrightness: Brightness.dark, // iOS: light icons
 
@@ -71,7 +71,7 @@ Widget build(BuildContext context) {
 
   return AnnotatedRegion<SystemUiOverlayStyle>(
     value: const SystemUiOverlayStyle(
-      statusBarColor: Colors.black,
+      statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
       statusBarBrightness: Brightness.dark,
       systemNavigationBarColor: Color.fromARGB(255, 23, 13, 2),
