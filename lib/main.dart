@@ -1,3 +1,9 @@
+// main.dart — ✅ просто заміни цим файлом
+// ✅ Зміни: звук тепер НЕ через Notification Channel, а через STREAM_ALARM (native service)
+// - Локальна нотифікація ТИХА (без звуку)
+// - Звук старт/енд запускається через MethodChannel: playAlarmSound(sound: alarm/alarm_end)
+// - Wake screen: у foreground завжди, у background НЕ викликаємо (Android часто блокує)
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -19,102 +25,123 @@ import 'injection_container.dart' as di;
 // ===== Local notifications plugin =====
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
 
-// ===== Android channel with custom sound (android/app/src/main/res/raw/alarm.mp3) =====
-const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
-  'air_alarm_channel',
-  'Air Alarm',
-  description: 'Air alarm notifications',
-  importance: Importance.max,
-  playSound: true,
-  sound: RawResourceAndroidNotificationSound('alarm'),
-);
-
-// ===== MethodChannel to open native AlarmActivity (turn screen on / show when locked) =====
+// ===== MethodChannel (native) =====
 const MethodChannel _alarmNative = MethodChannel('stalk_alarm/alarm');
+
+// ✅ ТИХИЙ канал для інфо-нотифікацій (без звуку)
+const AndroidNotificationChannel silentInfoChannel = AndroidNotificationChannel(
+  'silent_info_channel_v1',
+  'Stalk Alarm (Silent)',
+  description: 'Silent notifications (sound is played via ALARM stream)',
+  importance: Importance.high,
+  playSound: false,
+);
 
 // ===== Background handler =====
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _showLocalNotification(message);
+  await _handleIncomingMessage(message, isForeground: false);
 }
 
-/// Формуємо текст “область або район” з data payload (level/uid/name/type)
-Map<String, String> _composeAlarmTexts(RemoteMessage message) {
+/// Формуємо тексти з data payload: type/level/name/title/body
+Map<String, String> _composeTexts(RemoteMessage message) {
   final type = (message.data['type'] ?? '').toString(); // ALARM_START / ALARM_END
-  final level = (message.data['level'] ?? message.data['scope'] ?? '').toString(); // raion / oblast
+  final level =
+      (message.data['level'] ?? message.data['scope'] ?? '').toString(); // raion/oblast
   final name = (message.data['name'] ?? '').toString();
+
+  final title = (message.data['title'] ?? 'Stalk Alarm').toString();
+  final serverBody = (message.data['body'] ?? '').toString();
 
   final isStart = type == 'ALARM_START';
 
   final region = name.isNotEmpty
       ? name
-      : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '').toString();
+      : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '')
+          .toString();
 
-  final title = (message.data['title'] ?? 'Stalk Alarm').toString();
-
-  final body = isStart
+  final fallbackBody = isStart
       ? 'Увага! Повітряна тривога в "$region"! Залишайтесь в укритті!'
       : 'Відбій в "$region". Будьте обережні!';
 
-  // якщо сервер вже прислав body — беремо його як пріоритет
-  final serverBody = (message.data['body'] ?? '').toString();
-  final finalBody = serverBody.isNotEmpty ? serverBody : body;
-
   return {
-    'title': title,
-    'body': finalBody,
     'type': type,
     'level': level,
     'name': region,
+    'title': title,
+    'body': serverBody.isNotEmpty ? serverBody : fallbackBody,
   };
 }
 
-Future<void> _showLocalNotification(RemoteMessage message) async {
-  // ✅ якщо це notification-пуш (а не data-only) — НЕ показуємо локалку, інакше буде дубль
-  if (message.notification != null) return;
+/// ✅ Тиха нотифікація (без звуку)
+Future<void> _showSilentNotification(RemoteMessage message) async {
+  if (message.notification != null) return; // тільки data-only
 
-  final texts = _composeAlarmTexts(message);
+  final t = _composeTexts(message);
 
   await fln.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    texts['title'],
-    texts['body'],
-    const NotificationDetails(
+    t['title'],
+    t['body'],
+    NotificationDetails(
       android: AndroidNotificationDetails(
-        'air_alarm_channel',
-        'Air Alarm',
-        channelDescription: 'Air alarm notifications',
-        importance: Importance.max,
-        priority: Priority.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('alarm'),
-        category: AndroidNotificationCategory.alarm,
-        fullScreenIntent: true,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
+        silentInfoChannel.id,
+        silentInfoChannel.name,
+        channelDescription: silentInfoChannel.description,
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: false, // ✅ ключове
+        enableVibration: true,
         visibility: NotificationVisibility.public,
       ),
     ),
   );
 }
 
-/// ✅ Відкрити native AlarmActivity (тільки коли app у foreground/visible)
-Future<void> _openNativeAlarmScreen(RemoteMessage message) async {
+/// ✅ Запуск звуку через native service (STREAM_ALARM)
+Future<void> _playAlarmSound(RemoteMessage message) async {
   if (message.notification != null) return;
 
-  final texts = _composeAlarmTexts(message);
+  final type = (message.data['type'] ?? '').toString();
+  final isStart = type == 'ALARM_START';
+  final sound = isStart ? 'alarm' : 'alarm_end'; // raw/alarm.mp3, raw/alarm_end.mp3
 
   try {
-    await _alarmNative.invokeMethod('openAlarmScreen', {
-      'title': texts['title'],
-      'body': texts['body'],
-      'type': texts['type'],
-      'level': texts['level'],
-      'name': texts['name'],
-    });
-  } catch (_) {
-    // якщо канал/Activity не налаштовані — просто ігноруємо (залишиться FLN)
+    await _alarmNative.invokeMethod('playAlarmSound', {'sound': sound});
+  } catch (e) {
+    debugPrint('playAlarmSound failed: $e');
   }
+}
+
+/// ✅ Wake screen (тільки коли app у foreground)
+Future<void> _wakeScreenIfForeground(bool isForeground) async {
+  if (!isForeground) return; // у background Android часто блокує
+
+  try {
+    await _alarmNative.invokeMethod('wakeScreen');
+  } catch (e) {
+    debugPrint('wakeScreen failed: $e');
+  }
+}
+
+/// Загальна обробка повідомлення
+Future<void> _handleIncomingMessage(
+  RemoteMessage message, {
+  required bool isForeground,
+}) async {
+  if (message.notification != null) return;
+
+  debugPrint('FCM data: ${message.data}');
+
+  // 🔊 звук (ALARM stream)
+  await _playAlarmSound(message);
+
+  // 💡 увімкнути екран (лише foreground)
+  await _wakeScreenIfForeground(isForeground);
+
+  // 🔕 тиха нотифікація (без звуку)
+  await _showSilentNotification(message);
 }
 
 Future<void> main() async {
@@ -127,14 +154,23 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // ✅ Local notifications init + channel
+  // ✅ Local notifications init + create silent channel
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await fln.initialize(const InitializationSettings(android: androidInit));
 
-  await fln
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(alarmChannel);
+  final androidFln = fln
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidFln?.createNotificationChannel(silentInfoChannel);
 
+  // ✅ Permissions (iOS + Android 13+)
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // ✅ (не обовʼязково) формат дат
   await initializeDateFormatting('uk_UA');
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -147,36 +183,37 @@ Future<void> main() async {
     ),
   );
 
-  // ✅ Permissions
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  runApp(const AppRoot());
+}
 
-  // ✅ ВАЖЛИВО: BlocProvider має бути ВИЩЕ за AppRootLifecycle
-  runApp(
-    MultiBlocProvider(
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (_) => AlarmBloc(getCurrentAlarmUseCase: di.sl())
             ..add(StartAlarmPollingEvent(intervalMs: 15000)),
         ),
       ],
-      child: const AppRootLifecycle(),
-    ),
-  );
+      // ✅ лайфсайкл-обсервер нижче провайдера, щоб context.read<AlarmBloc>() працював
+      child: const _AppLifecycleGate(child: MyApp()),
+    );
+  }
 }
 
-/// ✅ Окремий віджет, який “бачить” BlocProvider зверху
-class AppRootLifecycle extends StatefulWidget {
-  const AppRootLifecycle({super.key});
+class _AppLifecycleGate extends StatefulWidget {
+  final Widget child;
+  const _AppLifecycleGate({required this.child});
 
   @override
-  State<AppRootLifecycle> createState() => _AppRootLifecycleState();
+  State<_AppLifecycleGate> createState() => _AppLifecycleGateState();
 }
 
-class _AppRootLifecycleState extends State<AppRootLifecycle> with WidgetsBindingObserver {
+class _AppLifecycleGateState extends State<_AppLifecycleGate>
+    with WidgetsBindingObserver {
   Timer? _resumeDebounce;
   StreamSubscription<RemoteMessage>? _onMsgSub;
   StreamSubscription<RemoteMessage>? _onOpenedSub;
@@ -188,14 +225,12 @@ class _AppRootLifecycleState extends State<AppRootLifecycle> with WidgetsBinding
 
     // Foreground messages
     _onMsgSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      // 1) Спроба відкрити AlarmActivity (коли app активний)
-      await _openNativeAlarmScreen(message);
-      // 2) Локальна нотифікація зі звуком (data-only)
-      await _showLocalNotification(message);
+      await _handleIncomingMessage(message, isForeground: true);
     });
 
-    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // TODO: навігація при тапі на нотифікацію (як захочеш)
+    _onOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // TODO: навігація якщо треба
     });
   }
 
@@ -212,7 +247,6 @@ class _AppRootLifecycleState extends State<AppRootLifecycle> with WidgetsBinding
 
     if (state == AppLifecycleState.resumed) {
       bloc.add(StopAlarmPollingEvent());
-
       _resumeDebounce?.cancel();
       _resumeDebounce = Timer(const Duration(seconds: 2), () {
         bloc.add(SoftRefreshAlarmEvent());
@@ -231,7 +265,7 @@ class _AppRootLifecycleState extends State<AppRootLifecycle> with WidgetsBinding
   }
 
   @override
-  Widget build(BuildContext context) => const MyApp();
+  Widget build(BuildContext context) => widget.child;
 }
 
 class MyApp extends StatelessWidget {
