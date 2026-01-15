@@ -496,7 +496,7 @@ class _MainScreenState extends State<MainScreen> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  top: 165,
+                  top: 111,
                   bottom: 0,
                   child: Center(
                     child: svgData == null
