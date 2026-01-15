@@ -1,7 +1,8 @@
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:stalc_alarm/view/widgets/custom_tick_mark_shape.dart';
-import 'package:stalc_alarm/view/widgets/gradient_container.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
 const MethodChannel _alarmNative = MethodChannel('stalk_alarm/alarm');
@@ -48,17 +49,39 @@ const topButtonGradient = LinearGradient(
   stops: [0.02, 0.6, 0.8, 1.0],
 );
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   int _cur = 0; // поточний крок
   int _max = 1; // максимум кроків STREAM_ALARM
   bool _dndGranted = false;
+  bool _notificationsEnabled = false;
 
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  Future<void> _checkNotifications() async {
+    final status = await Permission.notification.status;
+    if (!mounted) return;
+    setState(() {
+      _notificationsEnabled = status.isGranted;
+    });
+  }
+
+  Future<void> _openNotificationSettings() async {
+    await AppSettings.openAppSettings(type: AppSettingsType.notification);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotifications();
+    }
   }
 
   Future<void> _load() async {
@@ -78,6 +101,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _dndGranted = dnd;
         _loading = false;
       });
+
+      await _checkNotifications(); // 👈 ДОДАНО
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -131,6 +156,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     return Scaffold(
+      backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
       appBar: AppBar(
         backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
         centerTitle: true,
@@ -371,6 +397,65 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: BoxDecoration(gradient: bottomGradient),
                     ),
                     const SizedBox(height: 18),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color.fromARGB(90, 248, 137, 41),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.notifications,
+                              color: const Color.fromARGB(255, 248, 137, 41),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Нотифікації',
+                                    style: TextStyle(
+                                      color: Color.fromARGB(255, 248, 137, 41),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    _notificationsEnabled
+                                        ? 'Увімкнені'
+                                        : 'Вимкнені',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color.fromARGB(180, 248, 137, 41),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _notificationsEnabled,
+                              activeThumbColor: const Color.fromARGB(
+                                255,
+                                248,
+                                137,
+                                41,
+                              ),
+                              onChanged: (_) async {
+                                await _openNotificationSettings();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                     // Row(
                     //   children: [
@@ -410,5 +495,11 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 }

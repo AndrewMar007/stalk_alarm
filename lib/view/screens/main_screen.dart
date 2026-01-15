@@ -150,6 +150,31 @@ class _MainScreenState extends State<MainScreen> {
     final formattedDate = DateFormat('d MMMM y', 'uk_UA').format(now);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
+        centerTitle: true,
+        // actions: [
+        //   IconButton(
+        //     onPressed: () async {
+        //       await Navigator.of(
+        //         context,
+        //         rootNavigator: false,
+        //       ).push(CupertinoPageRoute(builder: (_) => const OblastsPage()));
+        //     },
+        //     icon: const Icon(
+        //       Icons.add,
+        //       color: Color.fromARGB(255, 247, 135, 50),
+        //     ),
+        //   ),
+        // ],
+        title: const Text(
+          "Мапа",
+          style: TextStyle(
+            color: Color.fromARGB(255, 247, 135, 50),
+            fontSize: 19,
+          ),
+        ),
+      ),
       body: BlocListener<AlarmBloc, AlarmBlocState>(
         listener: (context, state) async {
           if (state is LoadedState) {
@@ -176,7 +201,7 @@ class _MainScreenState extends State<MainScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(height: constraints.maxHeight * 0.07),
+                      //SizedBox(height: constraints.maxHeight * 0.07),
 
                       // const Text(
                       //   "Дата",
