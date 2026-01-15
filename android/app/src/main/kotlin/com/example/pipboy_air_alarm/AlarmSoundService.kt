@@ -12,6 +12,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 
 class AlarmSoundService : Service() {
@@ -26,6 +27,7 @@ class AlarmSoundService : Service() {
   }
 
   private var player: MediaPlayer? = null
+  private var wakeLock: PowerManager.WakeLock? = null
 
   override fun onCreate() {
     super.onCreate()
@@ -38,13 +40,14 @@ class AlarmSoundService : Service() {
       ACT_PLAY -> {
         val sound = intent.getStringExtra(EXTRA_SOUND) ?: "alarm"
 
-        // ✅ Якщо ALARM volume = 0 → НЕ граємо взагалі (повна тиша)
+        // 🔊 якщо ALARM volume = 0 → повна тиша
         if (isAlarmVolumeZero()) {
-          stop() // якщо щось грало — зупинити
-          stopForeground(STOP_FOREGROUND_REMOVE)
           stopSelf()
           return START_NOT_STICKY
         }
+
+        // ⚡ ПРОБУДИТИ ЕКРАН
+        acquireWakeLock()
 
         startForegroundInternal()
         play(sound)
@@ -52,6 +55,7 @@ class AlarmSoundService : Service() {
 
       ACT_STOP -> {
         stop()
+        releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
       }
@@ -59,21 +63,36 @@ class AlarmSoundService : Service() {
     return START_NOT_STICKY
   }
 
+  // ===============================
+  // ⚡ WAKELOCK
+  // ===============================
+  private fun acquireWakeLock() {
+    if (wakeLock?.isHeld == true) return
+
+    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+    wakeLock = pm.newWakeLock(
+      PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+        PowerManager.ACQUIRE_CAUSES_WAKEUP or
+        PowerManager.ON_AFTER_RELEASE,
+      "stalk_alarm:WAKE"
+    )
+
+    wakeLock?.acquire(4000) // 4 секунди — достатньо
+  }
+
+  private fun releaseWakeLock() {
+    try {
+      wakeLock?.release()
+    } catch (_: Throwable) {}
+    wakeLock = null
+  }
+
+  // ===============================
+  // 🔊 AUDIO
+  // ===============================
   private fun isAlarmVolumeZero(): Boolean {
     val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
     return am.getStreamVolume(AudioManager.STREAM_ALARM) <= 0
-  }
-
-  private fun startForegroundInternal() {
-    val n: Notification = NotificationCompat.Builder(this, CH_ID)
-      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-      .setContentTitle("Stalk Alarm")
-      .setContentText("Playing alarm…")
-      .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_MAX)
-      .build()
-
-    startForeground(NOTIF_ID, n)
   }
 
   private fun play(sound: String) {
@@ -81,12 +100,10 @@ class AlarmSoundService : Service() {
 
     val resId = resources.getIdentifier(sound, "raw", packageName)
     if (resId == 0) {
-      stopForeground(STOP_FOREGROUND_REMOVE)
       stopSelf()
       return
     }
 
-    // ✅ ВАЖЛИВО: не MediaPlayer.create(), а вручну — щоб AudioAttributes застосувались правильно
     val uri = Uri.parse("android.resource://$packageName/$resId")
 
     player = MediaPlayer().apply {
@@ -101,6 +118,7 @@ class AlarmSoundService : Service() {
 
       setOnCompletionListener {
         stop()
+        releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
       }
@@ -114,6 +132,21 @@ class AlarmSoundService : Service() {
     try { player?.stop() } catch (_: Throwable) {}
     try { player?.release() } catch (_: Throwable) {}
     player = null
+  }
+
+  // ===============================
+  // 🔔 FOREGROUND
+  // ===============================
+  private fun startForegroundInternal() {
+    val n: Notification = NotificationCompat.Builder(this, CH_ID)
+      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+      .setContentTitle("Stalk Alarm")
+      .setContentText("Тривога активна")
+      .setOngoing(true)
+      .setPriority(NotificationCompat.PRIORITY_MAX)
+      .build()
+
+    startForeground(NOTIF_ID, n)
   }
 
   private fun ensureChannel() {
@@ -130,6 +163,7 @@ class AlarmSoundService : Service() {
 
   override fun onDestroy() {
     stop()
+    releaseWakeLock()
     super.onDestroy()
   }
 
