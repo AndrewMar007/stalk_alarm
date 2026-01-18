@@ -7,6 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:stalc_alarm/core/values/lists.dart';
+import 'package:stalc_alarm/view/screens/oblast_details_page.dart';
+
+import 'package:xml/xml.dart';
+import 'package:path_drawing/path_drawing.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc_state.dart';
@@ -23,6 +28,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
+/* ================== UI gradients ================== */
+
 const topGradient = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -34,6 +41,7 @@ const topGradient = LinearGradient(
   ],
   stops: [0.0, 0.6, 0.9, 1.0],
 );
+
 const bottomGradient = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -45,6 +53,7 @@ const bottomGradient = LinearGradient(
   ],
   stops: [0.0, 0.5, 0.8, 1.0],
 );
+
 const dividerGradient = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -70,19 +79,39 @@ const verticalGradient = LinearGradient(
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
   String? error;
+
   Timer? _timer;
   late final Stream<double> s1;
   late final Stream<double> s2;
   String _time = '';
+
   // щоб не перемальовувати SVG без потреби
   Set<int> _lastIds = {};
 
+  // Для zoom/pan
+  final TransformationController _tc = TransformationController();
+
+  // viewBox із SVG
+  Rect? _viewBox;
+
+  // Карта id -> Path в SVG координатах (для hit-test)
+  final Map<int, Path> _idToPath = {};
+
+  // ✅ Дуже важливо для продуктивності:
+  // спочатку фільтруємо по bounds (Rect), і лише потім робимо дорогий Path.contains()
+  final Map<int, Rect> _idToBounds = {};
+
+  /* ===================== Alerts -> SVG ===================== */
+
   Future<void> _updateSvgFromAlerts(List<AlertModel> alerts) async {
-    // ⚠️ Ти використовуєш locationOblastUid як id для path'ів — ок, лишаємо як є.
     final ids = alerts.map((e) => e.locationOblastUid).whereType<int>().toSet();
 
-    // якщо нічого не змінилось — не перегенеровуємо SVG
-    if (setEquals(ids, _lastIds) && svgData != null) return;
+    if (setEquals(ids, _lastIds) &&
+        svgData != null &&
+        _viewBox != null &&
+        _idToPath.isNotEmpty) {
+      return;
+    }
 
     _lastIds = ids;
 
@@ -93,6 +122,9 @@ class _MainScreenState extends State<MainScreen> {
       strokeWidth: 6,
     );
 
+    // Парсимо viewBox і path-и для hit-test (робимо один раз на оновлення SVG)
+    _parseSvgForHitTest(v);
+
     if (!mounted) return;
     setState(() {
       svgData = v;
@@ -100,12 +132,110 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  Stream<double> rangedRandomStream({
-    required double min,
-    required double max,
-  }) {
-    final random = Random();
+  void _parseSvgForHitTest(String svgString) {
+    _idToPath.clear();
+    _idToBounds.clear();
+    _viewBox = null;
 
+    try {
+      final doc = XmlDocument.parse(svgString);
+
+      final svgEl = doc.findAllElements('svg').isNotEmpty
+          ? doc.findAllElements('svg').first
+          : null;
+
+      if (svgEl != null) {
+        final vb = svgEl.getAttribute('viewBox');
+        if (vb != null) {
+          final parts = vb.trim().split(RegExp(r'\s+'));
+          if (parts.length == 4) {
+            final x = double.tryParse(parts[0]) ?? 0;
+            final y = double.tryParse(parts[1]) ?? 0;
+            final w = double.tryParse(parts[2]) ?? 0;
+            final h = double.tryParse(parts[3]) ?? 0;
+            if (w > 0 && h > 0) _viewBox = Rect.fromLTWH(x, y, w, h);
+          }
+        }
+      }
+
+      // Беремо ВСІ path з id (числові)
+      for (final p in doc.findAllElements('path')) {
+        final idRaw = p.getAttribute('id');
+        final d = p.getAttribute('d');
+        if (idRaw == null || d == null) continue;
+
+        final id = int.tryParse(idRaw.trim());
+        if (id == null) continue;
+
+        Path path = parseSvgPathData(d);
+
+        // Якщо є transform на самому path — застосуємо
+        final t = p.getAttribute('transform');
+        if (t != null && t.trim().isNotEmpty) {
+          final m = _parseSvgTransformToMatrix4(t.trim());
+          if (m != null) {
+            path = path.transform(m.storage);
+          }
+        }
+
+        _idToPath[id] = path;
+        _idToBounds[id] = path.getBounds();
+      }
+
+      debugPrint('✅ Parsed viewBox=$_viewBox, paths=${_idToPath.length}');
+    } catch (e) {
+      debugPrint('❌ SVG parse error: $e');
+      _viewBox = null;
+      _idToPath.clear();
+      _idToBounds.clear();
+    }
+  }
+
+  // Мінімальна підтримка transform="matrix(a b c d e f)" / translate(x,y) / scale(sx,sy)
+  Matrix4? _parseSvgTransformToMatrix4(String t) {
+    final m1 = RegExp(
+        r'matrix\(\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*\)');
+    final mm = m1.firstMatch(t);
+    if (mm != null) {
+      final a = double.tryParse(mm.group(1)!) ?? 1;
+      final b = double.tryParse(mm.group(2)!) ?? 0;
+      final c = double.tryParse(mm.group(3)!) ?? 0;
+      final d = double.tryParse(mm.group(4)!) ?? 1;
+      final e = double.tryParse(mm.group(5)!) ?? 0;
+      final f = double.tryParse(mm.group(6)!) ?? 0;
+
+      // SVG matrix: [a c e; b d f; 0 0 1]
+      return Matrix4(
+        a, b, 0, 0,
+        c, d, 0, 0,
+        0, 0, 1, 0,
+        e, f, 0, 1,
+      );
+    }
+
+    final tr = RegExp(r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)')
+        .firstMatch(t);
+    if (tr != null) {
+      final x = double.tryParse(tr.group(1)!) ?? 0;
+      final y = double.tryParse(tr.group(2) ?? '0') ?? 0;
+      return Matrix4.identity()..translate(x, y);
+    }
+
+    final sc =
+        RegExp(r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
+    if (sc != null) {
+      final sx = double.tryParse(sc.group(1)!) ?? 1;
+      final sy = double.tryParse(sc.group(2) ?? sc.group(1)!) ?? sx;
+      return Matrix4.identity()..scale(sx, sy);
+    }
+
+    return null;
+  }
+
+  /* ===================== Random streams / time ===================== */
+
+  Stream<double> rangedRandomStream({required double min, required double max}) {
+    final random = Random();
     return Stream.periodic(const Duration(seconds: 3), (_) {
       final value = min + random.nextDouble() * (max - min);
       return double.parse(value.toStringAsFixed(2));
@@ -119,9 +249,6 @@ class _MainScreenState extends State<MainScreen> {
     s2 = rangedRandomStream(min: 150.0, max: 450.0);
     _updateTime();
     _scheduleNextTick();
-    // ❗️НЕ стартуємо polling тут.
-    // Він має стартувати один раз в main.dart:
-    // AlarmBloc(...)..add(StartAlarmPollingEvent(intervalMs: 15000))
   }
 
   void _scheduleNextTick() {
@@ -130,19 +257,181 @@ class _MainScreenState extends State<MainScreen> {
 
     _timer = Timer(Duration(seconds: secondsUntilNextMinute), () {
       _updateTime();
-
-      // після першого тіку — кожну хвилину
-      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-        _updateTime();
-      });
+      _timer =
+          Timer.periodic(const Duration(minutes: 1), (_) => _updateTime());
     });
   }
 
   void _updateTime() {
-    setState(() {
-      _time = DateFormat('HH:mm').format(DateTime.now());
-    });
+    setState(() => _time = DateFormat('HH:mm').format(DateTime.now()));
   }
+
+  /* ===================== BottomSheet / title ===================== */
+
+  String _oblastTitleById(int id) {
+    final uid = "oblast_$id";
+    final found = ListsOfAdministrativeUnits.oblasts
+        .where((o) => o.uid == uid)
+        .toList();
+    if (found.isNotEmpty) return found.first.title;
+    return "Невідомо ($uid)";
+  }
+
+  void _showRaionBottomSheet(int id) {
+ // final title = _oblastTitleById(id);
+
+final title = _oblastTitleById(id);
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => OblastDetailsPage(id: id, title: title),
+    ),
+  );
+  // showModalBottomSheet(
+  //   context: context,
+  //   isScrollControlled: true, // ✅ дозволяє 100% висоти
+  //   useSafeArea: true,
+  //   enableDrag: false,
+  //   isDismissible: false,
+  //   backgroundColor: Colors.transparent,
+  //   builder: (sheetContext) {
+  //     final height = MediaQuery.of(sheetContext).size.height;
+  //     return SizedBox(
+  //       height: height, // ✅ ПОВНИЙ ЕКРАН
+  //       child: Container(
+  //         decoration: const BoxDecoration(
+  //           color: Color.fromARGB(255, 20, 11, 2),
+  //         ),
+  //         child: Column(
+  //           children: [
+  //             // ===== Верхня панель =====
+  //             Container(
+  //               height: 56,
+  //               padding: const EdgeInsets.symmetric(horizontal: 12),
+  //               decoration: const BoxDecoration(
+  //                 border: Border(
+  //                   bottom: BorderSide(
+  //                     color: Color.fromARGB(80, 247, 135, 50),
+  //                     width: 1,
+  //                   ),
+  //                 ),
+  //               ),
+  //               child: Row(
+  //                 children: [
+  //                   Expanded(
+  //                     child: Text(
+  //                       title,
+  //                       style: const TextStyle(
+  //                         color: Color.fromARGB(255, 247, 135, 50),
+  //                         fontSize: 18,
+  //                         fontWeight: FontWeight.bold,
+  //                       ),
+  //                       overflow: TextOverflow.ellipsis,
+  //                     ),
+  //                   ),
+  //                   IconButton(
+  //                     icon: const Icon(Icons.close),
+  //                     color: const Color.fromARGB(255, 247, 135, 50),
+  //                     onPressed: () {
+  //                       Navigator.of(sheetContext).pop();
+  //                     },
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+
+  //             // ===== Контент =====
+  //             Expanded(
+  //               child: Padding(
+  //                 padding: const EdgeInsets.all(20),
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   children: [
+  //                     Text(
+  //                       'Ідентифікатор',
+  //                       style: TextStyle(
+  //                         color: Colors.grey.shade400,
+  //                         fontSize: 12,
+  //                       ),
+  //                     ),
+  //                     const SizedBox(height: 4),
+  //                     Text(
+  //                       'ID: $id\nuid: oblast_$id',
+  //                       style: const TextStyle(
+  //                         color: Color.fromARGB(255, 206, 113, 42),
+  //                         fontSize: 14,
+  //                       ),
+  //                     ),
+
+  //                     const SizedBox(height: 24),
+
+  //                     // 👉 тут можеш далі додавати будь-який UI:
+  //                     // статус тривоги, графіки, кнопки, списки тощо
+  //                     Expanded(
+  //                       child: Center(
+  //                         child: Text(
+  //                           'Контент області',
+  //                           style: TextStyle(
+  //                             color: Colors.grey.shade500,
+  //                             fontSize: 14,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     );
+  //   },
+  // );
+}
+
+
+  /* ===================== Tap handling ===================== */
+
+  // Конвертація точки з "видимої картинки" (BoxFit.contain) у координати SVG viewBox
+  Offset? _widgetPointToSvgPoint({
+    required Offset pWidget, // точка в координатах child (після toScene)
+    required Size widgetSize,
+    required Rect viewBox,
+  }) {
+    final vbW = viewBox.width;
+    final vbH = viewBox.height;
+    if (vbW <= 0 || vbH <= 0) return null;
+
+    final scale = min(widgetSize.width / vbW, widgetSize.height / vbH);
+    final drawW = vbW * scale;
+    final drawH = vbH * scale;
+
+    final dx = (widgetSize.width - drawW) / 2;
+    final dy = (widgetSize.height - drawH) / 2;
+
+    if (pWidget.dx < dx || pWidget.dx > dx + drawW) return null;
+    if (pWidget.dy < dy || pWidget.dy > dy + drawH) return null;
+
+    final xSvg = (pWidget.dx - dx) / scale + viewBox.left;
+    final ySvg = (pWidget.dy - dy) / scale + viewBox.top;
+    return Offset(xSvg, ySvg);
+  }
+
+  int? _hitTestId({required Offset svgPoint}) {
+    // ✅ Спочатку швидкий bounds-test, потім дорогий Path.contains
+    for (final entry in _idToBounds.entries) {
+      final id = entry.key;
+      final bounds = entry.value;
+      if (!bounds.contains(svgPoint)) continue;
+
+      final path = _idToPath[id];
+      if (path != null && path.contains(svgPoint)) return id;
+    }
+    return null;
+  }
+
+  /* ===================== Build ===================== */
 
   @override
   Widget build(BuildContext context) {
@@ -153,20 +442,6 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
         centerTitle: true,
-        // actions: [
-        //   IconButton(
-        //     onPressed: () async {
-        //       await Navigator.of(
-        //         context,
-        //         rootNavigator: false,
-        //       ).push(CupertinoPageRoute(builder: (_) => const OblastsPage()));
-        //     },
-        //     icon: const Icon(
-        //       Icons.add,
-        //       color: Color.fromARGB(255, 247, 135, 50),
-        //     ),
-        //   ),
-        // ],
         title: const Text(
           "Мапа",
           style: TextStyle(
@@ -181,351 +456,253 @@ class _MainScreenState extends State<MainScreen> {
             await _updateSvgFromAlerts(state.alarmList);
           } else if (state is ErrorState) {
             if (!mounted) return;
-            setState(() {
-              error = state.failure.toString();
-            });
+            setState(() => error = state.failure.toString());
           }
         },
         child: LayoutBuilder(
-          builder: (context, constraints) => Container(
-            height: constraints.maxHeight,
-            width: constraints.maxWidth,
-            decoration: const BoxDecoration(
-              color: Color.fromARGB(255, 20, 11, 2),
-            ),
-            child: Stack(
-              children: [
-                // Верхній HUD
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      //SizedBox(height: constraints.maxHeight * 0.07),
-
-                      // const Text(
-                      //   "Дата",
-                      //   style: TextStyle(
-                      //     color: Color.fromARGB(255, 247, 135, 50),
-                      //     fontSize: 18,
-                      //     fontWeight: FontWeight.w800,
-                      //     letterSpacing: 2,
-                      //   ),
-                      // ),
-                      // SizedBox(
-                      //   height: 5,
-                      //   width: constraints.maxWidth / 8,
-                      //   child: const Divider(
-                      //     height: 2,
-                      //     color: Color.fromARGB(74, 87, 87, 87),
-                      //   ),
-                      // ),
-                      // const SizedBox(height: 5),
-                      // Text(
-                      //   formattedDate,
-                      //   style: const TextStyle(
-                      //     color: Color.fromARGB(255, 206, 113, 42),
-                      //     fontSize: 14,
-                      //     letterSpacing: 1.2,
-                      //   ),
-                      // ),
-                      // SizedBox(
-                      //   height: 5,
-                      //   width: constraints.maxWidth / 2.7,
-                      //   child: const Divider(
-                      //     height: 2,
-                      //     color: Color.fromARGB(74, 87, 87, 87),
-                      //   ),
-                      // ),
-
-                      // const SizedBox(height: 5),
-                      // const Text(
-                      //   "Ваше місцезнаходження:",
-                      //   style: TextStyle(
-                      //     color: Color.fromARGB(255, 247, 135, 50),
-                      //     fontSize: 15,
-                      //     fontWeight: FontWeight.w800,
-                      //     letterSpacing: 2,
-                      //   ),
-                      // ),
-                      // SizedBox(
-                      //   height: 5,
-                      //   width: constraints.maxWidth / 1.7,
-                      //   child: const Divider(
-                      //     height: 2,
-                      //     color: Color.fromARGB(74, 87, 87, 87),
-                      //   ),
-                      // ),
-
-                      // const SizedBox(height: 5),
-                      // const Text(
-                      //   "Звенигородка",
-                      //   style: TextStyle(
-                      //     color: Color.fromARGB(255, 206, 113, 42),
-                      //     fontSize: 14,
-                      //     letterSpacing: 1.2,
-                      //   ),
-                      // ),
-                      // SizedBox(
-                      //   height: 5,
-                      //   width: constraints.maxWidth / 3.6,
-                      //   child: const Divider(
-                      //     height: 2,
-                      //     color: Color.fromARGB(74, 87, 87, 87),
-                      //   ),
-                      // ),
-
-                      // if (error != null) ...[
-                      //   const SizedBox(height: 8),
-                      //   Text(
-                      //     error!,
-                      //     style: const TextStyle(
-                      //       color: Color.fromARGB(255, 255, 120, 80),
-                      //       fontSize: 12,
-                      //     ),
-                      //   ),
-                      GradientBorderTopBottom(
-                        topGradient: topGradient,
-                        bottomGradient: bottomGradient,
-                        strokeWidth: 2,
-                        radius: 0,
-                        child: Container(
-                          height: constraints.maxHeight * 0.163,
-                          width: constraints.maxWidth,
-                          // decoration: BoxDecoration(
-                          //   border: Border.all(
-                          //     color: Color.fromARGB(255, 247, 135, 50),
-                          //   ),
-                          // ),
-                          child: Column(
-                            children: [
-                              Row(
+          builder: (context, constraints) {
+            return Container(
+              height: constraints.maxHeight,
+              width: constraints.maxWidth,
+              decoration: const BoxDecoration(
+                color: Color.fromARGB(255, 20, 11, 2),
+              ),
+              child: Stack(
+                children: [
+                  // Верхній HUD
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        RepaintBoundary(
+                          child: GradientBorderTopBottom(
+                            topGradient: topGradient,
+                            bottomGradient: bottomGradient,
+                            strokeWidth: 2,
+                            radius: 0,
+                            child: SizedBox(
+                              height: constraints.maxHeight * 0.163,
+                              width: constraints.maxWidth,
+                              child: Column(
                                 children: [
-                                  Container(
-                                    height: constraints.maxHeight * 0.1,
-                                    width: constraints.maxWidth * 0.49,
-                                    // decoration: BoxDecoration(
-                                    //   border: Border.all(
-                                    //     color: Color.fromARGB(
-                                    //       255,
-                                    //       247,
-                                    //       135,
-                                    //       50,
-                                    //     ),
-                                    //   ),
-                                    // ),
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        height: constraints.maxHeight * 0.1,
+                                        width: constraints.maxWidth * 0.49,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Text(
+                                              "Псі-випромінювання",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color.fromARGB(
+                                                    255, 247, 135, 50),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                                height: constraints.maxHeight *
+                                                    0.01),
+                                            StreamBuilder(
+                                              stream: s1,
+                                              builder: (context, snap) {
+                                                return Text(
+                                                  "${(snap.data ?? 0).toStringAsFixed(2)} Од",
+                                                  style: const TextStyle(
+                                                    color: Color.fromARGB(
+                                                        255, 247, 135, 50),
+                                                    fontSize: 15.0,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      GradientVerticalDivider(
+                                        gradient: verticalGradient,
+                                        thickness: 1.5,
+                                        height: constraints.maxHeight * 0.1,
+                                      ),
+                                      SizedBox(
+                                        height: constraints.maxHeight * 0.1,
+                                        width: constraints.maxWidth * 0.488,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Text(
+                                              "Аномальна частота",
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              style: TextStyle(
+                                                color: Color.fromARGB(
+                                                    255, 247, 135, 50),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                                height: constraints.maxHeight *
+                                                    0.01),
+                                            StreamBuilder(
+                                              stream: s2,
+                                              builder: (context, snap) {
+                                                return Text(
+                                                  "${(snap.data ?? 150).toStringAsFixed(0)} кГц",
+                                                  style: const TextStyle(
+                                                    color: Color.fromARGB(
+                                                        255, 247, 135, 50),
+                                                    fontSize: 15.0,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    height: constraints.maxHeight * 0.06,
+                                    width: constraints.maxWidth,
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          "Псі-випромінювання",
-                                          textAlign: TextAlign.center,
-
-                                          style: TextStyle(
-                                            color: Color.fromARGB(
-                                              255,
-                                              247,
-                                              135,
-                                              50,
-                                            ),
-                                            fontSize: 12,
-                                          ),
+                                        SizedBox(
+                                            height: constraints.maxHeight *
+                                                0.005),
+                                        GradientDivider(
+                                          gradient: dividerGradient,
+                                          thickness: 2,
                                         ),
                                         SizedBox(
-                                          height: constraints.maxHeight * 0.01,
-                                        ),
-                                        StreamBuilder(
-                                          stream: s1,
-                                          builder: (context, asyncSnapshot) {
-                                            return Text(
-                                              "${(asyncSnapshot.data ?? 0).toStringAsFixed(2)} Од",
-                                              style: TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
-                                                fontSize: 15.0,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  GradientVerticalDivider(
-                                    gradient: verticalGradient,
-                                    thickness: 1.5,
-                                    height: constraints.maxHeight * 0.1,
-                                  ),
-                                  Container(
-                                    height: constraints.maxHeight * 0.1,
-                                    width: constraints.maxWidth * 0.488,
-
-                                    // decoration: BoxDecoration(
-                                    //   border: Border.all(
-                                    //     color: Color.fromARGB(
-                                    //       255,
-                                    //       247,
-                                    //       135,
-                                    //       50,
-                                    //     ),
-                                    //   ),
-                                    // ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          "Аномальна частота",
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          style: TextStyle(
-                                            color: Color.fromARGB(
-                                              255,
-                                              247,
-                                              135,
-                                              50,
+                                            height:
+                                                constraints.maxHeight * 0.01),
+                                        FittedBox(
+                                          child: Text(
+                                            "$formattedDate, $_time",
+                                            style: const TextStyle(
+                                              color: Color.fromARGB(
+                                                  255, 247, 135, 50),
+                                              fontSize: 16.0,
                                             ),
-                                            fontSize: 12,
                                           ),
-                                        ),
-                                        SizedBox(
-                                          height: constraints.maxHeight * 0.01,
-                                        ),
-
-                                        StreamBuilder(
-                                          stream: s2,
-                                          builder: (context, asyncSnapshot) {
-                                            return Text(
-                                              "${(asyncSnapshot.data ?? 150).toStringAsFixed(0)} кГц",
-                                              style: TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
-                                                fontSize: 15.0,
-                                              ),
-                                            );
-                                          },
                                         ),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
-                              Container(
-                                height: constraints.maxHeight * 0.06,
-                                width: constraints.maxWidth,
-                                // decoration: BoxDecoration(
-                                //   border: Border.all(
-                                //     color: Color.fromARGB(255, 247, 135, 50),
-                                //   ),
-                                // ),
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                      height: constraints.maxHeight * 0.005,
-                                    ),
-                                    // Text(
-                                    //   "Дата",
-                                    //   style: TextStyle(
-                                    //     color: Color.fromARGB(
-                                    //       255,
-                                    //       247,
-                                    //       135,
-                                    //       50,
-                                    //     ),
-                                    //   ),
-                                    // ),
-                                    GradientDivider(
-                                      gradient: dividerGradient,
-                                      thickness: 2,
-                                    ),
-                                    SizedBox(
-                                      height: constraints.maxHeight * 0.01,
-                                    ),
-                                    Text(
-                                      "$formattedDate, $_time",
-                                      style: TextStyle(
-                                        color: Color.fromARGB(
-                                          255,
-                                          247,
-                                          135,
-                                          50,
-                                        ),
-                                        fontSize: 17.0,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: -50,
-                  right: -50,
-                  top: -50,
-                  bottom: -50,
-                  child: Image(
-                    image: AssetImage("assets/back.png"),
-                    color: const Color.fromARGB(32, 41, 41, 41),
-                  ),
-                ),
-                Positioned(
-                  left: -350,
-                  right: -350,
-                  bottom: -250,
-                  top: -100,
-                  child: Image(
-                    image: AssetImage("assets/radiation.png"),
-                    color: const Color.fromARGB(17, 55, 27, 6),
-                  ),
-                ),
-                // Карта по центру
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 111,
-                  bottom: 0,
-                  child: Center(
-                    child: svgData == null
-                        ? const CircularProgressIndicator()
-                        : InteractiveViewer(
-                            constrained: true,
-                            clipBehavior: Clip.hardEdge,
-                            minScale: 1,
-                            maxScale: 3.5,
-                            child: SvgPicture.string(
-                              svgData!,
-                              fit: BoxFit.contain,
-                              allowDrawingOutsideViewBox: false,
                             ),
                           ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+
+                  // фон
+                  const Positioned(
+                    left: -50,
+                    right: -50,
+                    top: -50,
+                    bottom: -50,
+                    child: Image(
+                      image: AssetImage("assets/back.png"),
+                      color: Color.fromARGB(32, 41, 41, 41),
+                    ),
+                  ),
+                  const Positioned(
+                    left: -350,
+                    right: -350,
+                    bottom: -250,
+                    top: -100,
+                    child: Image(
+                      image: AssetImage("assets/radiation.png"),
+                      color: Color.fromARGB(17, 55, 27, 6),
+                    ),
+                  ),
+
+                  // Карта по центру
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 111,
+                    bottom: 0,
+                    child: Center(
+                      child: svgData == null
+                          ? const CircularProgressIndicator()
+                          : LayoutBuilder(
+                              builder: (context, mapConstraints) {
+                                final mapSize = Size(mapConstraints.maxWidth,
+                                    mapConstraints.maxHeight);
+
+                                // ✅ Listener краще для сумісності з InteractiveViewer жестами
+                                return Listener(
+                                  behavior: HitTestBehavior.opaque,
+                                  onPointerUp: (e) {
+                                    if (_viewBox == null ||
+                                        _idToPath.isEmpty) return;
+
+                                    // переводимо точку в "scene" InteractiveViewer (з урахуванням zoom/pan)
+                                    final scenePoint =
+                                        _tc.toScene(e.localPosition);
+
+                                    final svgPoint = _widgetPointToSvgPoint(
+                                      pWidget: scenePoint,
+                                      widgetSize: mapSize,
+                                      viewBox: _viewBox!,
+                                    );
+
+                                    if (svgPoint == null) return;
+
+                                    final id =
+                                        _hitTestId(svgPoint: svgPoint);
+                                    if (id != null) {
+                                      _showRaionBottomSheet(id);
+                                    }
+                                  },
+                                  child: RepaintBoundary(
+                                    child: InteractiveViewer(
+                                      transformationController: _tc,
+                                      constrained: true,
+                                      // ✅ часто дає плавніше на трансформаціях
+                                      clipBehavior: Clip.none,
+                                      minScale: 1,
+                                      maxScale: 3.5,
+                                      child: SizedBox(
+                                        width: mapSize.width,
+                                        height: mapSize.height,
+                                        child: SvgPicture.string(
+                                          svgData!,
+                                          fit: BoxFit.contain,
+                                          allowDrawingOutsideViewBox: false,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // ❗️dispose без StopPolling. Polling глобальний.
   @override
   void dispose() {
     _timer?.cancel();
+    _tc.dispose();
     super.dispose();
   }
 }
@@ -543,22 +720,18 @@ String stripSvgNamespaces(String svg) {
 
 String sanitizeSvgForFlutter(String svg) {
   svg = svg.replaceAll(RegExp(r'<!DOCTYPE[\s\S]*?>', multiLine: true), '');
-  svg = svg.replaceAll(
-    RegExp(r'<metadata[\s\S]*?<\/metadata>', multiLine: true),
-    '',
-  );
+  svg =
+      svg.replaceAll(RegExp(r'<metadata[\s\S]*?<\/metadata>', multiLine: true),
+          '');
   svg = svg.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', multiLine: true), '');
 
   svg = svg.replaceAll(
-    RegExp(r'<defs\b[^>]*>[\s\S]*?<\/defs>', multiLine: true),
-    '',
-  );
+      RegExp(r'<defs\b[^>]*>[\s\S]*?<\/defs>', multiLine: true), '');
   svg = svg.replaceAll(RegExp(r'<defs\b[^>]*/\s*>', multiLine: true), '');
   svg = svg.replaceAll(
-    RegExp(r'<\w+:defs\b[^>]*>[\s\S]*?<\/\w+:defs>', multiLine: true),
-    '',
-  );
-  svg = svg.replaceAll(RegExp(r'<\w+:defs\b[^>]*/\s*>', multiLine: true), '');
+      RegExp(r'<\w+:defs\b[^>]*>[\s\S]*?<\/\w+:defs>', multiLine: true), '');
+  svg =
+      svg.replaceAll(RegExp(r'<\w+:defs\b[^>]*/\s*>', multiLine: true), '');
 
   return svg;
 }
@@ -610,7 +783,7 @@ String forceStrokesStaticish(String svg) {
       attrs = attrs.replaceAll(RegExp(r'\sstroke-linecap="[^"]*"'), '');
 
       final outer =
-          '<g$attrs stroke="#FFFFFF" stroke-width="4.8" '
+          '<g$attrs stroke="#F78732" stroke-width="4.8" '
           'stroke-linejoin="round" stroke-linecap="round">';
 
       final inner =

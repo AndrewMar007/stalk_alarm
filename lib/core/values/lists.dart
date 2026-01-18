@@ -55,6 +55,7 @@ class ListsOfAdministrativeUnits {
     Oblast(uid: "oblast_24", title: "Черкаська область"),
     Oblast(uid: "oblast_26", title: "Чернівецька область"),
     Oblast(uid: "oblast_25", title: "Чернігівська область"),
+    Oblast(uid: "oblast_29", title: "АР Крим")
   ];
 
   static const List<Raion> raions = [
