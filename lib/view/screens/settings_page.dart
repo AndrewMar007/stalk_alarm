@@ -56,8 +56,6 @@ class _SettingsPageState extends State<SettingsPage>
   bool _dndGranted = false;
   bool _notificationsEnabled = false;
 
-  bool _loading = true;
-
   @override
   void initState() {
     super.initState();
@@ -85,7 +83,6 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
     try {
       final steps = await _alarmNative.invokeMethod<Map>('getAlarmVolumeSteps');
       final dnd =
@@ -99,13 +96,11 @@ class _SettingsPageState extends State<SettingsPage>
         _max = max > 0 ? max : 1;
         _cur = cur.clamp(0, _max);
         _dndGranted = dnd;
-        _loading = false;
       });
 
       await _checkNotifications(); // 👈 ДОДАНО
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
     }
   }
 
@@ -153,8 +148,6 @@ class _SettingsPageState extends State<SettingsPage>
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-
     return Scaffold(
       backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
       appBar: AppBar(
@@ -397,66 +390,168 @@ class _SettingsPageState extends State<SettingsPage>
                       decoration: BoxDecoration(gradient: bottomGradient),
                     ),
                     const SizedBox(height: 18),
+
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color.fromARGB(90, 248, 137, 41),
+                      child: Stack(
+                        children: [
+                          // 🔶 Основний контейнер з боковим бордером
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: const Border(
+                                left: BorderSide(
+                                  color: Color.fromARGB(90, 248, 137, 41),
+                                  width: 1,
+                                ),
+                                right: BorderSide(
+                                  color: Color.fromARGB(90, 248, 137, 41),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.notifications,
+                                  color: Color.fromARGB(255, 248, 137, 41),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Сповіщення',
+                                        style: TextStyle(
+                                          color: Color.fromARGB(
+                                            255,
+                                            248,
+                                            137,
+                                            41,
+                                          ),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        _notificationsEnabled
+                                            ? 'Увімкнені'
+                                            : 'Вимкнені',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color.fromARGB(
+                                            180,
+                                            248,
+                                            137,
+                                            41,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  activeTrackColor: const Color.fromARGB(
+                                    255,
+                                    83,
+                                    47,
+                                    16,
+                                  ), // 🟠 ON
+                                  inactiveTrackColor: Color.fromARGB(
+                                    0,
+                                    74,
+                                    42,
+                                    14,
+                                  ), // ⚫ OFF
+                                  inactiveThumbColor: const Color.fromARGB(
+                                    255,
+                                    248,
+                                    137,
+                                    41,
+                                  ),
+                                  value: _notificationsEnabled,
+                                  trackOutlineColor:
+                                      WidgetStateProperty.resolveWith((states) {
+                                        if (states.contains(
+                                          WidgetState.selected,
+                                        )) {
+                                          return const Color.fromARGB(
+                                            140,
+                                            248,
+                                            137,
+                                            41,
+                                          );
+                                        }
+                                        return const Color.fromARGB(
+                                          90,
+                                          248,
+                                          137,
+                                          41,
+                                        );
+                                      }),
+                                  activeThumbColor: const Color.fromARGB(
+                                    255,
+                                    248,
+                                    137,
+                                    41,
+                                  ),
+                                  onChanged: (_) async {
+                                    await _openNotificationSettings();
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.notifications,
-                              color: const Color.fromARGB(255, 248, 137, 41),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Нотифікації',
-                                    style: TextStyle(
-                                      color: Color.fromARGB(255, 248, 137, 41),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  Text(
-                                    _notificationsEnabled
-                                        ? 'Увімкнені'
-                                        : 'Вимкнені',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color.fromARGB(180, 248, 137, 41),
-                                    ),
-                                  ),
-                                ],
+
+                          // 🔶 Верхній градієнт
+                          Positioned(
+                            top: 0,
+                            left: 14, // ⬅️ під radius
+                            right: 14,
+                            child: Container(
+                              height: 1.5,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color.fromARGB(4, 249, 189, 25),
+                                    Color.fromARGB(169, 248, 138, 41),
+                                    Color.fromARGB(4, 249, 189, 25),
+                                  ],
+                                ),
                               ),
                             ),
-                            Switch(
-                              value: _notificationsEnabled,
-                              activeThumbColor: const Color.fromARGB(
-                                255,
-                                248,
-                                137,
-                                41,
+                          ),
+
+                          // 🔶 Нижній градієнт
+                          Positioned(
+                            bottom: 0,
+                            left: 14,
+                            right: 14,
+                            child: Container(
+                              height: 1.5,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color.fromARGB(4, 249, 189, 25),
+                                    Color.fromARGB(169, 248, 138, 41),
+                                    Color.fromARGB(4, 249, 189, 25),
+                                  ],
+                                ),
                               ),
-                              onChanged: (_) async {
-                                await _openNotificationSettings();
-                              },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-
                     // Row(
                     //   children: [
                     //     Expanded(

@@ -62,8 +62,8 @@ Map<String, String> _composeTexts(RemoteMessage message) {
           .toString();
 
   final fallbackBody = isStart
-      ? 'Увага! Повітряна тривога в "$region"! Залишайтесь в укритті!'
-      : 'Відбій в "$region". Будьте обережні!';
+      ? 'Увага! Насувається викид в "$region"! Пройдіть в найближче укриття!'
+      : 'Відбій в "$region". Слідкуйте за подальшими оновленнями!';
 
   return {
     'type': type,
@@ -169,7 +169,9 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
-
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   // ✅ (не обовʼязково) формат дат
   await initializeDateFormatting('uk_UA');
 
