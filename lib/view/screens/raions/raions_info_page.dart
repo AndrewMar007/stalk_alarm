@@ -48,7 +48,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
   String _titleOfUnit(SavedAdminUnit u) {
     if (u.hromadaTitle != null) return u.hromadaTitle!;
     if (u.raionTitle != null) return u.raionTitle!;
-    return u.oblastTitle;
+    return u.oblastTitle!;
   }
 
   final storage = SavedAdminUnitsStorage();
@@ -69,10 +69,13 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                 );
                 debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
                 await storage.remove(widget.unit);
-              } else if (widget.unit.raionUid == null) {
+              } else if (widget.unit.oblastUid != null) {
                 await FirebaseMessaging.instance.unsubscribeFromTopic(
-                  widget.unit.oblastUid,
+                  widget.unit.oblastUid!,
                 );
+                debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
+                await storage.remove(widget.unit);
+              } else if (widget.unit.hromadaUid != null){
                 debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
                 await storage.remove(widget.unit);
               }

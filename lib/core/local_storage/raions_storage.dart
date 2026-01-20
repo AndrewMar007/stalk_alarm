@@ -67,11 +67,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/admin_units.dart';
 
 class SavedAdminUnit {
-  final String oblastUid;
-  final String oblastTitle;
+  final String? oblastUid;
+  final String? oblastTitle;
   final String? raionTitle;
   final String? raionUid;
   final String? hromadaTitle;
+  final String? hromadaUid;
 
   const SavedAdminUnit({
     required this.oblastUid,
@@ -79,6 +80,7 @@ class SavedAdminUnit {
     required this.raionTitle,
     required this.raionUid,
     required this.hromadaTitle,
+    required this.hromadaUid,
   });
 
   /// Унікальний ключ запису (щоб не було дублів і було легко видаляти)
@@ -90,6 +92,7 @@ class SavedAdminUnit {
         'raionTitle': raionTitle,
         'raionUid': raionUid,
         'hromadaTitle': hromadaTitle,
+        'hromadaUid': hromadaUid,
       };
 
   factory SavedAdminUnit.fromJson(Map<String, dynamic> json) {
@@ -98,7 +101,8 @@ class SavedAdminUnit {
       oblastTitle: json['oblastTitle'] ,
       raionTitle: json['raionTitle'] ,
       raionUid: json['raionUid'],
-      hromadaTitle: json['hromadaTitle'] ,
+      hromadaTitle: json['hromadaTitle'],
+      hromadaUid: json['hromadaUid'],
     );
   }
 }
@@ -124,7 +128,7 @@ class SavedAdminUnitsStorage {
 
   /// ➕ Додати запис (Tile). Якщо такий вже є — не дублюємо.
   Future<void> add(Oblast oblast, Raion raion, Hromada hromada) async {
-    final unit = SavedAdminUnit(oblastUid: oblast.uid, oblastTitle: oblast.title, raionTitle: raion.title, raionUid: raion.uid, hromadaTitle: hromada.title);
+    final unit = SavedAdminUnit(oblastUid: oblast.uid, oblastTitle: oblast.title, raionTitle: raion.title, raionUid: raion.uid, hromadaTitle: hromada.title, hromadaUid: hromada.uid);
     final list = await loadAll();
     final exists = list.any((e) => e.key == unit.key);
     if (!exists) {

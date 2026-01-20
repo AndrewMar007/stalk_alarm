@@ -1,14 +1,14 @@
-enum Environment {dev, prod}
+enum Environment { dev, prod }
 
-class Env{
+class Env {
   static Environment current = Environment.dev;
 
-  static String get baseUrl{
-    switch(current) {
+  static String get baseUrl {
+    switch (current) {
       case Environment.dev:
-      return "https://stalk-alarm-proxy-api.onrender.com/api";
+        return "http://192.168.50.67:3000/api";
       case Environment.prod:
-      return "";
+        return "https://stalk-alarm-proxy-api.onrender.com/api";
     }
   }
 }

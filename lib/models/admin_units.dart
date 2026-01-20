@@ -9,8 +9,8 @@
 // }
 
 class Oblast {
-  final String uid; // умовний ID
-  final String title;
+  final String? uid; // умовний ID
+  final String? title;
 
   const Oblast({required this.uid, required this.title});
 }

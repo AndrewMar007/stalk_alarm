@@ -118,7 +118,7 @@ class _OblastsPageState extends State<OblastsPage> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        ListsOfAdministrativeUnits.oblasts[index].title,
+                        ListsOfAdministrativeUnits.oblasts[index].title!,
                         style: const TextStyle(
                           color: Color.fromARGB(255, 248, 137, 41),
                           fontSize: 16,
@@ -136,7 +136,7 @@ class _OblastsPageState extends State<OblastsPage> {
                     if (ListsOfAdministrativeUnits.oblasts[index].uid ==
                         "oblast_31") {
                       await FirebaseMessaging.instance.subscribeToTopic(
-                        ListsOfAdministrativeUnits.oblasts[index].uid,
+                        ListsOfAdministrativeUnits.oblasts[index].uid!,
                       );
                       debugPrint(
                         '✅ subscribed to ${ListsOfAdministrativeUnits.oblasts[index].uid}',

@@ -201,7 +201,7 @@ class _SettingsPageState extends State<SettingsPage>
                   top: -100,
                   child: Image(
                     image: AssetImage("assets/radiation.png"),
-                    color: const Color.fromARGB(17, 55, 27, 6),
+                      color: Color.fromARGB(15, 54, 27, 6),
                   ),
                 ),
                 SizedBox(
@@ -227,6 +227,8 @@ class _SettingsPageState extends State<SettingsPage>
                             ),
                             child: Row(
                               children: [
+                                Icon(Icons.volume_up, color: Color.fromARGB(255, 248, 137, 41,), size: 25,),
+                                SizedBox(width: constraints.maxWidth * 0.02,),
                                 const Text(
                                   'Гучність сигналу тривоги',
                                   style: TextStyle(
@@ -238,7 +240,7 @@ class _SettingsPageState extends State<SettingsPage>
                                 Text(
                                   _cur == 0
                                       ? 'Рівень: 0% (вимкнено)'
-                                      : 'Рівень: ${_percent()}%  •  крок $_cur / $_max',
+                                      : 'Рівень: ${_percent()}%',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color.fromARGB(255, 248, 137, 41),

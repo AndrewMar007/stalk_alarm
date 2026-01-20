@@ -15,8 +15,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
-import 'package:stalc_alarm/view/bloc/alarm_bloc_event.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_event.dart';
+import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc.dart';
 import 'package:stalc_alarm/view/screens/router/cupertino_bottom_navigation_bar.dart';
 
 import 'firebase_options.dart';
@@ -46,9 +47,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// Формуємо тексти з data payload: type/level/name/title/body
 Map<String, String> _composeTexts(RemoteMessage message) {
-  final type = (message.data['type'] ?? '').toString(); // ALARM_START / ALARM_END
-  final level =
-      (message.data['level'] ?? message.data['scope'] ?? '').toString(); // raion/oblast
+  final type = (message.data['type'] ?? '')
+      .toString(); // ALARM_START / ALARM_END
+  final level = (message.data['level'] ?? message.data['scope'] ?? '')
+      .toString(); // raion/oblast
   final name = (message.data['name'] ?? '').toString();
 
   final title = (message.data['title'] ?? 'Stalk Alarm').toString();
@@ -59,7 +61,7 @@ Map<String, String> _composeTexts(RemoteMessage message) {
   final region = name.isNotEmpty
       ? name
       : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '')
-          .toString();
+            .toString();
 
   final fallbackBody = isStart
       ? 'Увага! Насувається викид в "$region"! Пройдіть в найближче укриття!'
@@ -105,7 +107,9 @@ Future<void> _playAlarmSound(RemoteMessage message) async {
 
   final type = (message.data['type'] ?? '').toString();
   final isStart = type == 'ALARM_START';
-  final sound = isStart ? 'alarm' : 'alarm_end'; // raw/alarm.mp3, raw/alarm_end.mp3
+  final sound = isStart
+      ? 'alarm'
+      : 'alarm_end'; // raw/alarm.mp3, raw/alarm_end.mp3
 
   try {
     await _alarmNative.invokeMethod('playAlarmSound', {'sound': sound});
@@ -160,7 +164,8 @@ Future<void> main() async {
 
   final androidFln = fln
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+        AndroidFlutterLocalNotificationsPlugin
+      >();
   await androidFln?.createNotificationChannel(silentInfoChannel);
 
   // ✅ Permissions (iOS + Android 13+)
@@ -169,9 +174,7 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   // ✅ (не обовʼязково) формат дат
   await initializeDateFormatting('uk_UA');
 
@@ -196,8 +199,12 @@ class AppRoot extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => AlarmBloc(getCurrentAlarmUseCase: di.sl())
-            ..add(StartAlarmPollingEvent(intervalMs: 15000)),
+          create: (_) =>
+              AlarmBloc(getCurrentAlarmUseCase: di.sl())
+                ..add(StartAlarmPollingEvent(intervalMs: 15000)),
+        ),
+        BlocProvider(
+          create: (_) => AlarmHistoryBloc(getAlarmHistoryUseCase: di.sl()),
         ),
       ],
       // ✅ лайфсайкл-обсервер нижче провайдера, щоб context.read<AlarmBloc>() працював
@@ -226,12 +233,15 @@ class _AppLifecycleGateState extends State<_AppLifecycleGate>
     WidgetsBinding.instance.addObserver(this);
 
     // Foreground messages
-    _onMsgSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    _onMsgSub = FirebaseMessaging.onMessage.listen((
+      RemoteMessage message,
+    ) async {
       await _handleIncomingMessage(message, isForeground: true);
     });
 
-    _onOpenedSub =
-        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((
+      RemoteMessage message,
+    ) {
       // TODO: навігація якщо треба
     });
   }
@@ -279,10 +289,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Stalk Alarm',
       theme: ThemeData(
-        
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
-        
       ),
       home: const CupertinoBottomBar(),
     );

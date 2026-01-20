@@ -98,7 +98,7 @@ class _RaionsPageState extends State<RaionsPage> {
           // КОНТЕНТ
           LayoutBuilder(
             builder: (context, constrains) => ListView.separated(
-              itemCount: getRaionsByOblast(widget.oblast.uid).length + 1,
+              itemCount: getRaionsByOblast(widget.oblast.uid!).length + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return ListTile(
@@ -128,7 +128,7 @@ class _RaionsPageState extends State<RaionsPage> {
                     ),
                     onTap: () async {
                       await FirebaseMessaging.instance.subscribeToTopic(
-                        widget.oblast.uid,
+                        widget.oblast.uid!,
                       );
                       debugPrint('✅ subscribed to ${widget.oblast.uid}');
                       SavedAdminUnitsStorage().add(
@@ -148,7 +148,7 @@ class _RaionsPageState extends State<RaionsPage> {
                     },
                   );
                 }
-                final unit = getRaionsByOblast(widget.oblast.uid)[index - 1];
+                final unit = getRaionsByOblast(widget.oblast.uid!)[index - 1];
                 return ListTile(
                   tileColor: Color.fromARGB(4, 249, 189, 25),
                   leading: SizedBox(

@@ -9,12 +9,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:stalc_alarm/core/values/lists.dart';
 import 'package:stalc_alarm/view/screens/oblast_details_page.dart';
+import 'package:stalc_alarm/view/widgets/radiation_loader.dart';
+import 'package:stalc_alarm/view/widgets/radiation_loader_text.dart';
 
 import 'package:xml/xml.dart';
 import 'package:path_drawing/path_drawing.dart';
 
-import 'package:stalc_alarm/view/bloc/alarm_bloc.dart';
-import 'package:stalc_alarm/view/bloc/alarm_bloc_state.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_state.dart';
 import 'package:stalc_alarm/view/widgets/gradient_container.dart';
 import 'package:stalc_alarm/view/widgets/gradient_horizontal_divider.dart';
 import 'package:stalc_alarm/view/widgets/gradient_vertical_divider.dart';
@@ -69,10 +71,7 @@ const dividerGradient = LinearGradient(
 const verticalGradient = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
-  colors: [
-    Color.fromARGB(72, 232, 136, 27),
-    Color.fromARGB(255, 20, 11, 2),
-  ],
+  colors: [Color.fromARGB(72, 232, 136, 27), Color.fromARGB(255, 20, 11, 2)],
   stops: [0.0, 1.0],
 );
 
@@ -194,7 +193,8 @@ class _MainScreenState extends State<MainScreen> {
   // Мінімальна підтримка transform="matrix(a b c d e f)" / translate(x,y) / scale(sx,sy)
   Matrix4? _parseSvgTransformToMatrix4(String t) {
     final m1 = RegExp(
-        r'matrix\(\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*\)');
+      r'matrix\(\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*\)',
+    );
     final mm = m1.firstMatch(t);
     if (mm != null) {
       final a = double.tryParse(mm.group(1)!) ?? 1;
@@ -205,24 +205,21 @@ class _MainScreenState extends State<MainScreen> {
       final f = double.tryParse(mm.group(6)!) ?? 0;
 
       // SVG matrix: [a c e; b d f; 0 0 1]
-      return Matrix4(
-        a, b, 0, 0,
-        c, d, 0, 0,
-        0, 0, 1, 0,
-        e, f, 0, 1,
-      );
+      return Matrix4(a, b, 0, 0, c, d, 0, 0, 0, 0, 1, 0, e, f, 0, 1);
     }
 
-    final tr = RegExp(r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)')
-        .firstMatch(t);
+    final tr = RegExp(
+      r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
+    ).firstMatch(t);
     if (tr != null) {
       final x = double.tryParse(tr.group(1)!) ?? 0;
       final y = double.tryParse(tr.group(2) ?? '0') ?? 0;
       return Matrix4.identity()..translate(x, y);
     }
 
-    final sc =
-        RegExp(r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
+    final sc = RegExp(
+      r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
+    ).firstMatch(t);
     if (sc != null) {
       final sx = double.tryParse(sc.group(1)!) ?? 1;
       final sy = double.tryParse(sc.group(2) ?? sc.group(1)!) ?? sx;
@@ -234,7 +231,10 @@ class _MainScreenState extends State<MainScreen> {
 
   /* ===================== Random streams / time ===================== */
 
-  Stream<double> rangedRandomStream({required double min, required double max}) {
+  Stream<double> rangedRandomStream({
+    required double min,
+    required double max,
+  }) {
     final random = Random();
     return Stream.periodic(const Duration(seconds: 3), (_) {
       final value = min + random.nextDouble() * (max - min);
@@ -257,8 +257,7 @@ class _MainScreenState extends State<MainScreen> {
 
     _timer = Timer(Duration(seconds: secondsUntilNextMinute), () {
       _updateTime();
-      _timer =
-          Timer.periodic(const Duration(minutes: 1), (_) => _updateTime());
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) => _updateTime());
     });
   }
 
@@ -273,123 +272,122 @@ class _MainScreenState extends State<MainScreen> {
     final found = ListsOfAdministrativeUnits.oblasts
         .where((o) => o.uid == uid)
         .toList();
-    if (found.isNotEmpty) return found.first.title;
+    if (found.isNotEmpty) return found.first.title!;
     return "Невідомо ($uid)";
   }
 
   void _showRaionBottomSheet(int id) {
- // final title = _oblastTitleById(id);
+    // final title = _oblastTitleById(id);
 
-final title = _oblastTitleById(id);
+    final title = _oblastTitleById(id);
 
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => OblastDetailsPage(id: id, title: title),
-    ),
-  );
-  // showModalBottomSheet(
-  //   context: context,
-  //   isScrollControlled: true, // ✅ дозволяє 100% висоти
-  //   useSafeArea: true,
-  //   enableDrag: false,
-  //   isDismissible: false,
-  //   backgroundColor: Colors.transparent,
-  //   builder: (sheetContext) {
-  //     final height = MediaQuery.of(sheetContext).size.height;
-  //     return SizedBox(
-  //       height: height, // ✅ ПОВНИЙ ЕКРАН
-  //       child: Container(
-  //         decoration: const BoxDecoration(
-  //           color: Color.fromARGB(255, 20, 11, 2),
-  //         ),
-  //         child: Column(
-  //           children: [
-  //             // ===== Верхня панель =====
-  //             Container(
-  //               height: 56,
-  //               padding: const EdgeInsets.symmetric(horizontal: 12),
-  //               decoration: const BoxDecoration(
-  //                 border: Border(
-  //                   bottom: BorderSide(
-  //                     color: Color.fromARGB(80, 247, 135, 50),
-  //                     width: 1,
-  //                   ),
-  //                 ),
-  //               ),
-  //               child: Row(
-  //                 children: [
-  //                   Expanded(
-  //                     child: Text(
-  //                       title,
-  //                       style: const TextStyle(
-  //                         color: Color.fromARGB(255, 247, 135, 50),
-  //                         fontSize: 18,
-  //                         fontWeight: FontWeight.bold,
-  //                       ),
-  //                       overflow: TextOverflow.ellipsis,
-  //                     ),
-  //                   ),
-  //                   IconButton(
-  //                     icon: const Icon(Icons.close),
-  //                     color: const Color.fromARGB(255, 247, 135, 50),
-  //                     onPressed: () {
-  //                       Navigator.of(sheetContext).pop();
-  //                     },
-  //                   ),
-  //                 ],
-  //               ),
-  //             ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OblastDetailsPage(id: id, title: title),
+      ),
+    );
+    // showModalBottomSheet(
+    //   context: context,
+    //   isScrollControlled: true, // ✅ дозволяє 100% висоти
+    //   useSafeArea: true,
+    //   enableDrag: false,
+    //   isDismissible: false,
+    //   backgroundColor: Colors.transparent,
+    //   builder: (sheetContext) {
+    //     final height = MediaQuery.of(sheetContext).size.height;
+    //     return SizedBox(
+    //       height: height, // ✅ ПОВНИЙ ЕКРАН
+    //       child: Container(
+    //         decoration: const BoxDecoration(
+    //           color: Color.fromARGB(255, 20, 11, 2),
+    //         ),
+    //         child: Column(
+    //           children: [
+    //             // ===== Верхня панель =====
+    //             Container(
+    //               height: 56,
+    //               padding: const EdgeInsets.symmetric(horizontal: 12),
+    //               decoration: const BoxDecoration(
+    //                 border: Border(
+    //                   bottom: BorderSide(
+    //                     color: Color.fromARGB(80, 247, 135, 50),
+    //                     width: 1,
+    //                   ),
+    //                 ),
+    //               ),
+    //               child: Row(
+    //                 children: [
+    //                   Expanded(
+    //                     child: Text(
+    //                       title,
+    //                       style: const TextStyle(
+    //                         color: Color.fromARGB(255, 247, 135, 50),
+    //                         fontSize: 18,
+    //                         fontWeight: FontWeight.bold,
+    //                       ),
+    //                       overflow: TextOverflow.ellipsis,
+    //                     ),
+    //                   ),
+    //                   IconButton(
+    //                     icon: const Icon(Icons.close),
+    //                     color: const Color.fromARGB(255, 247, 135, 50),
+    //                     onPressed: () {
+    //                       Navigator.of(sheetContext).pop();
+    //                     },
+    //                   ),
+    //                 ],
+    //               ),
+    //             ),
 
-  //             // ===== Контент =====
-  //             Expanded(
-  //               child: Padding(
-  //                 padding: const EdgeInsets.all(20),
-  //                 child: Column(
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   children: [
-  //                     Text(
-  //                       'Ідентифікатор',
-  //                       style: TextStyle(
-  //                         color: Colors.grey.shade400,
-  //                         fontSize: 12,
-  //                       ),
-  //                     ),
-  //                     const SizedBox(height: 4),
-  //                     Text(
-  //                       'ID: $id\nuid: oblast_$id',
-  //                       style: const TextStyle(
-  //                         color: Color.fromARGB(255, 206, 113, 42),
-  //                         fontSize: 14,
-  //                       ),
-  //                     ),
+    //             // ===== Контент =====
+    //             Expanded(
+    //               child: Padding(
+    //                 padding: const EdgeInsets.all(20),
+    //                 child: Column(
+    //                   crossAxisAlignment: CrossAxisAlignment.start,
+    //                   children: [
+    //                     Text(
+    //                       'Ідентифікатор',
+    //                       style: TextStyle(
+    //                         color: Colors.grey.shade400,
+    //                         fontSize: 12,
+    //                       ),
+    //                     ),
+    //                     const SizedBox(height: 4),
+    //                     Text(
+    //                       'ID: $id\nuid: oblast_$id',
+    //                       style: const TextStyle(
+    //                         color: Color.fromARGB(255, 206, 113, 42),
+    //                         fontSize: 14,
+    //                       ),
+    //                     ),
 
-  //                     const SizedBox(height: 24),
+    //                     const SizedBox(height: 24),
 
-  //                     // 👉 тут можеш далі додавати будь-який UI:
-  //                     // статус тривоги, графіки, кнопки, списки тощо
-  //                     Expanded(
-  //                       child: Center(
-  //                         child: Text(
-  //                           'Контент області',
-  //                           style: TextStyle(
-  //                             color: Colors.grey.shade500,
-  //                             fontSize: 14,
-  //                           ),
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     );
-  //   },
-  // );
-}
-
+    //                     // 👉 тут можеш далі додавати будь-який UI:
+    //                     // статус тривоги, графіки, кнопки, списки тощо
+    //                     Expanded(
+    //                       child: Center(
+    //                         child: Text(
+    //                           'Контент області',
+    //                           style: TextStyle(
+    //                             color: Colors.grey.shade500,
+    //                             fontSize: 14,
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     ),
+    //                   ],
+    //                 ),
+    //               ),
+    //             ),
+    //           ],
+    //         ),
+    //       ),
+    //     );
+    //   },
+    // );
+  }
 
   /* ===================== Tap handling ===================== */
 
@@ -440,7 +438,7 @@ final title = _oblastTitleById(id);
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
+        backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
         title: const Text(
           "Мапа",
@@ -500,13 +498,18 @@ final title = _oblastTitleById(id);
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: Color.fromARGB(
-                                                    255, 247, 135, 50),
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
                                                 fontSize: 12,
                                               ),
                                             ),
                                             SizedBox(
-                                                height: constraints.maxHeight *
-                                                    0.01),
+                                              height:
+                                                  constraints.maxHeight * 0.01,
+                                            ),
                                             StreamBuilder(
                                               stream: s1,
                                               builder: (context, snap) {
@@ -514,7 +517,11 @@ final title = _oblastTitleById(id);
                                                   "${(snap.data ?? 0).toStringAsFixed(2)} Од",
                                                   style: const TextStyle(
                                                     color: Color.fromARGB(
-                                                        255, 247, 135, 50),
+                                                      255,
+                                                      247,
+                                                      135,
+                                                      50,
+                                                    ),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -541,13 +548,18 @@ final title = _oblastTitleById(id);
                                               maxLines: 2,
                                               style: TextStyle(
                                                 color: Color.fromARGB(
-                                                    255, 247, 135, 50),
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
                                                 fontSize: 12,
                                               ),
                                             ),
                                             SizedBox(
-                                                height: constraints.maxHeight *
-                                                    0.01),
+                                              height:
+                                                  constraints.maxHeight * 0.01,
+                                            ),
                                             StreamBuilder(
                                               stream: s2,
                                               builder: (context, snap) {
@@ -555,7 +567,11 @@ final title = _oblastTitleById(id);
                                                   "${(snap.data ?? 150).toStringAsFixed(0)} кГц",
                                                   style: const TextStyle(
                                                     color: Color.fromARGB(
-                                                        255, 247, 135, 50),
+                                                      255,
+                                                      247,
+                                                      135,
+                                                      50,
+                                                    ),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -574,21 +590,25 @@ final title = _oblastTitleById(id);
                                           MainAxisAlignment.center,
                                       children: [
                                         SizedBox(
-                                            height: constraints.maxHeight *
-                                                0.005),
+                                          height: constraints.maxHeight * 0.005,
+                                        ),
                                         GradientDivider(
                                           gradient: dividerGradient,
                                           thickness: 2,
                                         ),
                                         SizedBox(
-                                            height:
-                                                constraints.maxHeight * 0.01),
+                                          height: constraints.maxHeight * 0.01,
+                                        ),
                                         FittedBox(
                                           child: Text(
                                             "$formattedDate, $_time",
                                             style: const TextStyle(
                                               color: Color.fromARGB(
-                                                  255, 247, 135, 50),
+                                                255,
+                                                247,
+                                                135,
+                                                50,
+                                              ),
                                               fontSize: 16.0,
                                             ),
                                           ),
@@ -623,7 +643,7 @@ final title = _oblastTitleById(id);
                     top: -100,
                     child: Image(
                       image: AssetImage("assets/radiation.png"),
-                      color: Color.fromARGB(17, 55, 27, 6),
+                      color: Color.fromARGB(15, 54, 27, 6),
                     ),
                   ),
 
@@ -635,22 +655,41 @@ final title = _oblastTitleById(id);
                     bottom: 0,
                     child: Center(
                       child: svgData == null
-                          ? const CircularProgressIndicator()
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  RadiationLoader(
+                                    color: Color.fromARGB(255, 247, 135, 50),
+                                  ),
+                                  RadiationLoaderText(
+                                    text: "Завантаження даних",
+                                    style: TextStyle(
+                                      color: Color.fromARGB(255, 186, 102, 38),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
                           : LayoutBuilder(
                               builder: (context, mapConstraints) {
-                                final mapSize = Size(mapConstraints.maxWidth,
-                                    mapConstraints.maxHeight);
+                                final mapSize = Size(
+                                  mapConstraints.maxWidth,
+                                  mapConstraints.maxHeight,
+                                );
 
                                 // ✅ Listener краще для сумісності з InteractiveViewer жестами
                                 return Listener(
                                   behavior: HitTestBehavior.opaque,
                                   onPointerUp: (e) {
-                                    if (_viewBox == null ||
-                                        _idToPath.isEmpty) return;
+                                    if (_viewBox == null || _idToPath.isEmpty)
+                                      return;
 
                                     // переводимо точку в "scene" InteractiveViewer (з урахуванням zoom/pan)
-                                    final scenePoint =
-                                        _tc.toScene(e.localPosition);
+                                    final scenePoint = _tc.toScene(
+                                      e.localPosition,
+                                    );
 
                                     final svgPoint = _widgetPointToSvgPoint(
                                       pWidget: scenePoint,
@@ -660,8 +699,7 @@ final title = _oblastTitleById(id);
 
                                     if (svgPoint == null) return;
 
-                                    final id =
-                                        _hitTestId(svgPoint: svgPoint);
+                                    final id = _hitTestId(svgPoint: svgPoint);
                                     if (id != null) {
                                       _showRaionBottomSheet(id);
                                     }
@@ -720,18 +758,22 @@ String stripSvgNamespaces(String svg) {
 
 String sanitizeSvgForFlutter(String svg) {
   svg = svg.replaceAll(RegExp(r'<!DOCTYPE[\s\S]*?>', multiLine: true), '');
-  svg =
-      svg.replaceAll(RegExp(r'<metadata[\s\S]*?<\/metadata>', multiLine: true),
-          '');
+  svg = svg.replaceAll(
+    RegExp(r'<metadata[\s\S]*?<\/metadata>', multiLine: true),
+    '',
+  );
   svg = svg.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', multiLine: true), '');
 
   svg = svg.replaceAll(
-      RegExp(r'<defs\b[^>]*>[\s\S]*?<\/defs>', multiLine: true), '');
+    RegExp(r'<defs\b[^>]*>[\s\S]*?<\/defs>', multiLine: true),
+    '',
+  );
   svg = svg.replaceAll(RegExp(r'<defs\b[^>]*/\s*>', multiLine: true), '');
   svg = svg.replaceAll(
-      RegExp(r'<\w+:defs\b[^>]*>[\s\S]*?<\/\w+:defs>', multiLine: true), '');
-  svg =
-      svg.replaceAll(RegExp(r'<\w+:defs\b[^>]*/\s*>', multiLine: true), '');
+    RegExp(r'<\w+:defs\b[^>]*>[\s\S]*?<\/\w+:defs>', multiLine: true),
+    '',
+  );
+  svg = svg.replaceAll(RegExp(r'<\w+:defs\b[^>]*/\s*>', multiLine: true), '');
 
   return svg;
 }

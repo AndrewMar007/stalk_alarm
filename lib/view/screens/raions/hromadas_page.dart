@@ -186,13 +186,13 @@ class _HromadasPageState extends State<HromadasPage> {
                   ),
                   onTap: () async {
                     await FirebaseMessaging.instance.subscribeToTopic(
-                      unit.uid!,
+                      'hromada_${unit.uid!}'
                     );
-                    debugPrint('✅ subscribed to ${widget.raion.uid}');
+                    debugPrint('✅ subscribed to hromada_${unit.uid!}');
                     // Map<String, dynamic> data = {"": RaionsAgregator.getHromadasByRaionUid(widget.raionUid)[index]};
                     SavedAdminUnitsStorage().add(
-                      widget.oblast,
-                      widget.raion,
+                      Oblast(uid: null, title: null),
+                      Raion(uid: null, oblastUid: null, title: null),
                       unit,
                     );
                     // TODO: логіка вибору області

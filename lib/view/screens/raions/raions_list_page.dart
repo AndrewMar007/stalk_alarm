@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
-import '../../bloc/alarm_bloc.dart';
-import '../../bloc/alarm_bloc_state.dart';
+import '../../bloc/alarm_bloc/alarm_bloc.dart';
+import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
 import '../raions/oblasts_page.dart';
 import '../raions/raions_info_page.dart';
 
@@ -100,15 +100,15 @@ class _RaionsListPageState extends State<RaionsListPage> {
   String _titleOfUnit(SavedAdminUnit u) {
     if (u.hromadaTitle != null) return u.hromadaTitle!;
     if (u.raionTitle != null) return u.raionTitle!;
-    return u.oblastTitle;
+    return u.oblastTitle!;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
+        backgroundColor: const Color.fromARGB(255, 20, 11, 2),
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
+        backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
 
         actions: [
@@ -154,7 +154,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                 top: -100,
                 child: Image(
                   image: AssetImage("assets/radiation.png"),
-                  color: const Color.fromARGB(17, 55, 27, 6),
+                      color: Color.fromARGB(15, 54, 27, 6),
                 ),
               ),
               SizedBox(

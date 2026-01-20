@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/core/usecases/use_case.dart';
-import 'package:stalc_alarm/view/bloc/alarm_bloc_event.dart';
-import 'package:stalc_alarm/view/bloc/alarm_bloc_state.dart';
-import '../../use_cases/get_current_alarm.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_event.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_state.dart';
+import '../../../use_cases/get_current_alarm.dart';
 
 class AlarmBloc extends Bloc<AlarmBlocEvent, AlarmBlocState> {
   final GetCurrentAlarm getCurrentAlarmUseCase;
@@ -74,3 +74,4 @@ class AlarmBloc extends Bloc<AlarmBlocEvent, AlarmBlocState> {
     return super.close();
   }
 }
+

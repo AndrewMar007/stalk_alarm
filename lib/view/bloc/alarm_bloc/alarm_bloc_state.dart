@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import '../../core/exceptions/failures.dart';
-import '../../models/alert_model.dart';
+import '../../../core/exceptions/failures.dart';
+import '../../../models/alert_model.dart';
 
 abstract class AlarmBlocState extends Equatable {}
 

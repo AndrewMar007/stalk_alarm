@@ -96,6 +96,7 @@ flutter:
     - assets/geo/ukr_adm1_oblasts.geojson
     - assets/geo/ukr_adm2_raions.geojson
     - assets/maps/ukraine_raions.svg
+    - assets/radiation_loader.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
