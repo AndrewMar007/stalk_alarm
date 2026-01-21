@@ -1,8 +1,6 @@
 // main.dart — ✅ просто заміни цим файлом
-// ✅ Зміни: звук тепер НЕ через Notification Channel, а через STREAM_ALARM (native service)
-// - Локальна нотифікація ТИХА (без звуку)
-// - Звук старт/енд запускається через MethodChannel: playAlarmSound(sound: alarm/alarm_end)
-// - Wake screen: у foreground завжди, у background НЕ викликаємо (Android часто блокує)
+// ✅ Зміни: тепер у foreground пуш прокидується в AlarmBloc (PushAlarmEvent),
+// щоб “громада/район/область” можна було показати в UI.
 
 import 'dart:async';
 
@@ -50,7 +48,7 @@ Map<String, String> _composeTexts(RemoteMessage message) {
   final type = (message.data['type'] ?? '')
       .toString(); // ALARM_START / ALARM_END
   final level = (message.data['level'] ?? message.data['scope'] ?? '')
-      .toString(); // raion/oblast
+      .toString(); // hromada/raion/oblast
   final name = (message.data['name'] ?? '').toString();
 
   final title = (message.data['title'] ?? 'Stalk Alarm').toString();
@@ -107,9 +105,7 @@ Future<void> _playAlarmSound(RemoteMessage message) async {
 
   final type = (message.data['type'] ?? '').toString();
   final isStart = type == 'ALARM_START';
-  final sound = isStart
-      ? 'alarm'
-      : 'alarm_end'; // raw/alarm.mp3, raw/alarm_end.mp3
+  final sound = isStart ? 'alarm' : 'alarm_end';
 
   try {
     await _alarmNative.invokeMethod('playAlarmSound', {'sound': sound});
@@ -120,7 +116,7 @@ Future<void> _playAlarmSound(RemoteMessage message) async {
 
 /// ✅ Wake screen (тільки коли app у foreground)
 Future<void> _wakeScreenIfForeground(bool isForeground) async {
-  if (!isForeground) return; // у background Android часто блокує
+  if (!isForeground) return;
 
   try {
     await _alarmNative.invokeMethod('wakeScreen');
@@ -138,27 +134,19 @@ Future<void> _handleIncomingMessage(
 
   debugPrint('FCM data: ${message.data}');
 
-  // 🔊 звук (ALARM stream)
   await _playAlarmSound(message);
-
-  // 💡 увімкнути екран (лише foreground)
   await _wakeScreenIfForeground(isForeground);
-
-  // 🔕 тиха нотифікація (без звуку)
   await _showSilentNotification(message);
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ DI
   await di.init();
 
-  // ✅ Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // ✅ Local notifications init + create silent channel
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await fln.initialize(const InitializationSettings(android: androidInit));
 
@@ -168,14 +156,13 @@ Future<void> main() async {
       >();
   await androidFln?.createNotificationChannel(silentInfoChannel);
 
-  // ✅ Permissions (iOS + Android 13+)
   await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
+
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  // ✅ (не обовʼязково) формат дат
   await initializeDateFormatting('uk_UA');
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -207,7 +194,6 @@ class AppRoot extends StatelessWidget {
           create: (_) => AlarmHistoryBloc(getAlarmHistoryUseCase: di.sl()),
         ),
       ],
-      // ✅ лайфсайкл-обсервер нижче провайдера, щоб context.read<AlarmBloc>() працював
       child: const _AppLifecycleGate(child: MyApp()),
     );
   }
@@ -237,6 +223,25 @@ class _AppLifecycleGateState extends State<_AppLifecycleGate>
       RemoteMessage message,
     ) async {
       await _handleIncomingMessage(message, isForeground: true);
+
+      // ✅ Нове: прокидаємо “громаду/район/область” у BLoC, щоб показати в UI
+      final t = _composeTexts(message);
+      final type = (t['type'] ?? '').toString();
+      final level = (t['level'] ?? '').toString();
+      final name = (t['name'] ?? '').toString();
+      final uid = (message.data['uid'] ?? '').toString(); // topic
+
+      if (type.isNotEmpty && level.isNotEmpty && name.isNotEmpty) {
+        if (!mounted) return;
+        context.read<AlarmBloc>().add(
+          PushAlarmEvent(
+            type: type,
+            level: level,
+            name: name,
+            uid: uid, // ← topic, типу hromada_UA...
+          ),
+        );
+      }
     });
 
     _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((

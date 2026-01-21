@@ -4,10 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
+import '../../../core/ua_hromadas_dart_files/agregator/agregator.dart';
 import '../../bloc/alarm_bloc/alarm_bloc.dart';
 import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
 import '../raions/oblasts_page.dart';
 import '../raions/raions_info_page.dart';
+
+// ✅ ДОДАЙ СВІЙ АГРЕГАТОР (підправ шлях, якщо інший)
 
 class RaionsListPage extends StatefulWidget {
   const RaionsListPage({super.key});
@@ -15,6 +18,8 @@ class RaionsListPage extends StatefulWidget {
   @override
   State<RaionsListPage> createState() => _RaionsListPageState();
 }
+
+/* ================= GRADIENTS ================= */
 
 const bottomButtonGradient = LinearGradient(
   begin: Alignment.centerLeft,
@@ -27,6 +32,7 @@ const bottomButtonGradient = LinearGradient(
   ],
   stops: [0.02, 0.4, 0.9, 1.0],
 );
+
 const topButtonGradient = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -51,20 +57,12 @@ const bottomGradient = LinearGradient(
   stops: [0.02, 0.4, 0.8, 1.0],
 );
 
+/* ================= STATE ================= */
+
 class _RaionsListPageState extends State<RaionsListPage> {
   final _storage = SavedAdminUnitsStorage();
   List<SavedAdminUnit> _listOfUnits = [];
   bool _loadingLocal = true;
-
-  Future<void> loadLocalData() async {
-    final data = await _storage.loadAll();
-    //debugPrint(data[1].oblastUid);
-    if (!mounted) return;
-    setState(() {
-      _listOfUnits = data;
-      _loadingLocal = false;
-    });
-  }
 
   @override
   void initState() {
@@ -72,28 +70,89 @@ class _RaionsListPageState extends State<RaionsListPage> {
     loadLocalData();
   }
 
-  /// Приводимо uid до чистого числа:
-  /// "raion_150" -> "150", "150" -> "150", "oblast_24" -> "24"
+  Future<void> loadLocalData() async {
+    final data = await _storage.loadAll();
+    if (!mounted) return;
+    setState(() {
+      _listOfUnits = data;
+      _loadingLocal = false;
+    });
+  }
+
+  /// "raion_150" -> "150"
   String _stripPrefix(String v) {
     final s = v.trim();
     if (s.contains('_')) return s.split('_').last;
     return s;
   }
 
+  /// uid -> hromada_UID
+  String _hromadaTopic(String uid) {
+    final s = uid.trim();
+    if (s.startsWith('hromada_')) return s;
+    return 'hromada_$s';
+  }
+
+  /// ✅ "hromada_UA...." -> "UA...."
+  String _stripHromadaPrefix(String v) {
+    final s = v.trim();
+    if (s.startsWith('hromada_')) return s.substring('hromada_'.length);
+    return s;
+  }
+
+  /// ✅ ГОЛОВНЕ: якщо в SavedAdminUnit немає raionUid, знайдемо його через RaionsAgregator
+  String? _resolveRaionUidForHromada(SavedAdminUnit unit) {
+    // 1) якщо вже збережено — повертаємо
+    final saved = unit.raionUid?.trim();
+    if (saved != null && saved.isNotEmpty) return saved;
+
+    // 2) знайти по hromadaUid у RaionsAgregator.allHromadas
+    final hUid = unit.hromadaUid;
+    if (hUid == null || hUid.trim().isEmpty) return null;
+
+    final rawUid = _stripHromadaPrefix(hUid);
+
+    // allHromadas: List<Hromada(uid: 'UA....', raionUid: 'raion_114', ... )>
+    final found = RaionsAgregator.allHromadas.where((h) => h.uid == rawUid);
+    if (found.isEmpty) return null;
+
+    return found.first.raionUid; // очікуємо "raion_114"
+  }
+
+  /// ===== Визначення активності =====
   bool _isActiveByUnit(
     SavedAdminUnit unit,
-    Set<String> activeRaionUids, // "150"
-    Set<String> activeOblastTitles, // "Миколаївська область"
+    Set<String> activeRaionUids,
+    Set<String> activeOblastTitles,
+    Set<String> activeHromadaTopics,
   ) {
-    // якщо користувач вибрав район — перевіряй його
-    final raionUid = unit.raionUid?.toString();
+    // ✅ 1) ГРОМАДА
+    final hromadaUid = unit.hromadaUid;
+    if (hromadaUid != null && hromadaUid.isNotEmpty) {
+      final topic = _hromadaTopic(hromadaUid);
+
+      // 1.1) якщо push START вже був отриманий додатком
+      if (activeHromadaTopics.contains(topic)) return true;
+
+      // 1.2) fallback: якщо активний район цієї громади
+      final raionUid = _resolveRaionUidForHromada(unit);
+      if (raionUid != null && raionUid.isNotEmpty) {
+        final normalizedRaion = _stripPrefix(raionUid);
+        if (activeRaionUids.contains(normalizedRaion)) return true;
+      }
+
+      // 1.3) fallback: якщо активна область
+      return activeOblastTitles.contains(unit.oblastTitle);
+    }
+
+    // ✅ 2) РАЙОН
+    final raionUid = unit.raionUid;
     if (raionUid != null && raionUid.isNotEmpty) {
       final normalized = _stripPrefix(raionUid);
       return activeRaionUids.contains(normalized);
     }
 
-    // якщо тільки область — перевіряй по назві області
-    // (бо у тебе `location_oblast_uid` в API може бути НЕ id області)
+    // ✅ 3) ОБЛАСТЬ
     return activeOblastTitles.contains(unit.oblastTitle);
   }
 
@@ -106,17 +165,22 @@ class _RaionsListPageState extends State<RaionsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 20, 11, 2),
+      backgroundColor: const Color.fromARGB(255, 20, 11, 2),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
-
+        title: const Text(
+          "Регіони",
+          style: TextStyle(
+            color: Color.fromARGB(255, 247, 135, 50),
+            fontSize: 19,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: () async {
               await Navigator.of(
                 context,
-                rootNavigator: false,
               ).push(CupertinoPageRoute(builder: (_) => const OblastsPage()));
             },
             icon: const Icon(
@@ -125,246 +189,219 @@ class _RaionsListPageState extends State<RaionsListPage> {
             ),
           ),
         ],
-        title: const Text(
-          "Регіони",
-          style: TextStyle(
-            color: Color.fromARGB(255, 247, 135, 50),
-            fontSize: 19,
-          ),
-        ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              Positioned(
-                left: -50,
-                right: -50,
-                top: -50,
-                bottom: -50,
-                child: Image(
-                  image: AssetImage("assets/back.png"),
-                  color: const Color.fromARGB(32, 41, 41, 41),
-                ),
-              ),
-              Positioned(
-                left: -350,
-                right: -350,
-                bottom: -250,
-                top: -100,
-                child: Image(
-                  image: AssetImage("assets/radiation.png"),
-                      color: Color.fromARGB(15, 54, 27, 6),
-                ),
-              ),
-              SizedBox(
-                height: 2, // товщина лінії
-                width: double.infinity,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(gradient: bottomGradient),
-                ),
-              ),
-              LayoutBuilder(
-                builder: (context, constrains) {
-                  if (_loadingLocal) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (_listOfUnits.isEmpty) {
-                    // return const Center(
-                    //   child: Text(
-                    //     "Нічого не вибрано",
-                    //     style: TextStyle(color: Color.fromARGB(255, 248, 165, 101)),
-                    //   ),
-                    // );
-                    return Center(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_location_rounded,
-                            color: Color.fromARGB(255, 247, 135, 50),
-                            size: 150,
-                          ),
-                          Text(
-                            "Оберіть ваш регіон",
-                            style: TextStyle(
-                              color: Color.fromARGB(255, 247, 135, 50),
-                              fontSize: 25.0,
-                            ),
-                          ),
-                          SizedBox(height: 20.0),
-                          Text(
-                            "Оберіть ваш регіон і слідкуйте за\n майбутніми повідомленнями",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color.fromARGB(255, 247, 135, 50),
-                            ),
-                          ),
-                          SizedBox(height: 30),
-                          GradientBorderButton(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: constraints.maxWidth * 0.12,
-                                vertical: constraints.maxHeight * 0.02,
-                              ),
-                              child: Text(
-                                "Додати регіон",
-                                style: TextStyle(
-                                  color: Color.fromARGB(255, 247, 135, 50),
-                                ),
-                              ),
-                            ),
-                            onTap: () async {
-                              await Navigator.of(
-                                context,
-                                rootNavigator: false,
-                              ).push(
-                                CupertinoPageRoute(
-                                  builder: (_) => const OblastsPage(),
-                                ),
-                              );
-                            },
-                            topGradient: topButtonGradient,
-                            bottomGradient: bottomButtonGradient,
-                            radius: 30.0,
-                          ),
-                        ],
+      body: Stack(
+        children: [
+          Positioned(
+            left: -50,
+            right: -50,
+            top: -50,
+            bottom: -50,
+            child: Image(
+              image: AssetImage("assets/back.png"),
+              color: const Color.fromARGB(32, 41, 41, 41),
+            ),
+          ),
+          Positioned(
+            left: -350,
+            right: -350,
+            bottom: -250,
+            top: -100,
+            child: Image(
+              image: AssetImage("assets/radiation.png"),
+              color: Color.fromARGB(15, 54, 27, 6),
+            ),
+          ),
+          SizedBox(
+            height: 2, // товщина лінії
+            width: double.infinity,
+            child: const DecoratedBox(
+              decoration: BoxDecoration(gradient: bottomGradient),
+            ),
+          ),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (_loadingLocal) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (_listOfUnits.isEmpty) {
+                // return const Center(
+                //   child: Text(
+                //     "Нічого не вибрано",
+                //     style: TextStyle(color: Color.fromARGB(255, 248, 165, 101)),
+                //   ),
+                // );
+                return Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_location_rounded,
+                        color: Color.fromARGB(255, 247, 135, 50),
+                        size: 150,
                       ),
-                    );
-                  }
-
-                  return BlocBuilder<AlarmBloc, AlarmBlocState>(
-                    builder: (context, state) {
-                      // ✅ активні райони (числові uid як строки)
-                      final activeRaionUids = <String>{};
-
-                      // ✅ активні області (по назві області)
-                      final activeOblastTitles = <String>{};
-
-                      if (state is LoadedState) {
-                        for (final a in state.alarmList) {
-                          // якщо finishedAt null => тривога активна
-                          if (a.finishedAt != null) continue;
-
-                          // ✅ область активна, якщо є ХОЧА Б ОДИН активний алерт в ній
-                          // (raion / hromada / city / oblast — не важливо)
-                          activeOblastTitles.add(a.locationOblast);
-
-                          // ✅ район активний лише коли location_type == raion
-                          if (a.locationType == 'raion') {
-                            final uid = _stripPrefix(a.locationUid.toString());
-                            activeRaionUids.add(uid);
-                          }
-                        }
-                      }
-
-                      return ListView.separated(
-                        itemCount: _listOfUnits.length,
-                        itemBuilder: (context, index) {
-                          final unit = _listOfUnits[index];
-
-                          final active = _isActiveByUnit(
-                            unit,
-                            activeRaionUids,
-                            activeOblastTitles,
-                          );
-
-                          return ListTile(
-                            tileColor: const Color.fromARGB(4, 249, 189, 25),
-                            leading: SizedBox(
-                              height: constrains.maxHeight * 0.06,
-                              child: const Image(
-                                image: AssetImage('assets/bullet.png'),
-                                color: Color.fromARGB(255, 224, 125, 15),
-                              ),
+                      Text(
+                        "Оберіть ваш регіон",
+                        style: TextStyle(
+                          color: Color.fromARGB(255, 247, 135, 50),
+                          fontSize: 25.0,
+                        ),
+                      ),
+                      SizedBox(height: 20.0),
+                      Text(
+                        "Оберіть ваш регіон і слідкуйте за\n майбутніми повідомленнями",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color.fromARGB(255, 247, 135, 50),
+                        ),
+                      ),
+                      SizedBox(height: 30),
+                      GradientBorderButton(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: constraints.maxWidth * 0.12,
+                            vertical: constraints.maxHeight * 0.02,
+                          ),
+                          child: Text(
+                            "Додати регіон",
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 247, 135, 50),
                             ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _titleOfUnit(unit),
-                                    style: const TextStyle(
-                                      color: Color.fromARGB(255, 248, 137, 41),
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward,
-                                  color: Color.fromARGB(255, 154, 83, 21),
-                                ),
-                              ],
+                          ),
+                        ),
+                        onTap: () async {
+                          await Navigator.of(
+                            context,
+                            rootNavigator: false,
+                          ).push(
+                            CupertinoPageRoute(
+                              builder: (_) => const OblastsPage(),
                             ),
-                            subtitle: Padding(
-                              padding: EdgeInsets.only(
-                                top: constrains.maxHeight * 0.015,
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    active
-                                        ? "В даному регіоні триває викид"
-                                        : "В даному регіоні немає викиду",
-                                    style: TextStyle(
-                                      color: active
-                                          ? const Color.fromARGB(
-                                              255,
-                                              255,
-                                              120,
-                                              80,
-                                            )
-                                          : const Color.fromARGB(
-                                              255,
-                                              154,
-                                              83,
-                                              21,
-                                            ),
-                                      fontSize: 12,
-                                      fontWeight: active
-                                          ? FontWeight.w700
-                                          : FontWeight.w400,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  const Text(
-                                    "Відстежується",
-                                    style: TextStyle(
-                                      color: Color.fromARGB(255, 154, 83, 21),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                CupertinoPageRoute(
-                                  builder: (_) => RaionsInfoPage(
-                                    unit: unit,
-                                    isActiveAlarm: _isActiveByUnit(
-                                      unit,
-                                      activeRaionUids,
-                                      activeOblastTitles,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
                           );
                         },
-                        separatorBuilder: (_, __) => Container(
-                          height: 2,
-                          decoration: BoxDecoration(gradient: bottomGradient),
+                        topGradient: topButtonGradient,
+                        bottomGradient: bottomButtonGradient,
+                        radius: 30.0,
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return BlocBuilder<AlarmBloc, AlarmBlocState>(
+                builder: (context, state) {
+                  final activeRaionUids = <String>{};
+                  final activeOblastTitles = <String>{};
+                  final activeHromadaTopics = <String>{};
+
+                  if (state is LoadedState) {
+                    // ✅ громади з push
+                    activeHromadaTopics.addAll(state.activeHromadas.keys);
+
+                    // ✅ області/райони з API
+                    for (final a in state.alarmList) {
+                      if (a.finishedAt != null) continue;
+
+                      // ⚠️ якщо ти фільтруєш тільки air_raid — додай тут:
+                      // if (a.alertType != 'air_raid') continue;
+
+                      activeOblastTitles.add(a.locationOblast);
+
+                      if (a.locationType == 'raion') {
+                        activeRaionUids.add(
+                          _stripPrefix(a.locationUid.toString()),
+                        );
+                      }
+                    }
+                  }
+
+                  return ListView.separated(
+                    itemCount: _listOfUnits.length,
+                    separatorBuilder: (_, __) => Container(
+                      height: 2,
+                      decoration: const BoxDecoration(gradient: bottomGradient),
+                    ),
+                    itemBuilder: (context, index) {
+                      final unit = _listOfUnits[index];
+
+                      final active = _isActiveByUnit(
+                        unit,
+                        activeRaionUids,
+                        activeOblastTitles,
+                        activeHromadaTopics,
+                      );
+
+                      return ListTile(
+                        tileColor: const Color.fromARGB(4, 249, 189, 25),
+                        leading: Image(
+                          image: AssetImage('assets/bullet.png'),
+                          color: Color.fromARGB(255, 224, 125, 15),
+                          width: constraints.maxWidth *0.1,
+                          height: constraints.maxHeight * 0.1,
                         ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _titleOfUnit(unit),
+                                style: const TextStyle(
+                                  color: Color.fromARGB(255, 248, 137, 41),
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Color.fromARGB(255, 154, 83, 21),
+                            ),
+                          ],
+                        ),
+                        subtitle: Row(
+                          children: [
+                            Text(
+                              active
+                                  ? "Викид триває"
+                                  : "Немає викиду",
+                              style: TextStyle(
+                                color: active
+                                    ? const Color.fromARGB(255, 255, 120, 80)
+                                    : const Color.fromARGB(255, 154, 83, 21),
+                                fontSize: 12,
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Text(
+                              "Відстежується",
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 154, 83, 21),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (_) => RaionsInfoPage(
+                                unit: unit,
+                                isActiveAlarm: active,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );
                 },
-              ),
-            ],
-          );
-        },
+              );
+            },
+          ),
+        ],
       ),
     );
   }
