@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:stalc_alarm/core/local_storage/raions_storage.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
+import 'package:stalc_alarm/view/widgets/alarm_widget.dart';
 
 import '../../../core/values/lists.dart';
 import '../../../models/admin_units.dart';
@@ -57,32 +58,49 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
-      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
+        backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
         iconTheme: IconThemeData(color: Color.fromARGB(255, 224, 125, 15)),
         actions: [
           IconButton(
             onPressed: () async {
-              if (widget.unit.raionUid != null) {
-                await FirebaseMessaging.instance.unsubscribeFromTopic(
-                  widget.unit.raionUid!,
-                );
-                debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
-                await storage.remove(widget.unit);
-              } else if (widget.unit.oblastUid != null) {
-                await FirebaseMessaging.instance.unsubscribeFromTopic(
-                  widget.unit.oblastUid!,
-                );
-                debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
-                await storage.remove(widget.unit);
-              } else if (widget.unit.hromadaUid != null){
-                debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
-                await storage.remove(widget.unit);
-              }
-
-              Navigator.of(context).pushAndRemoveUntil(
-                CupertinoPageRoute(builder: (_) => const RaionsListPage()),
-                (route) => false, // ❌ очищає ВСЕ
+              showDialog(
+                context: context,
+                useRootNavigator: false,
+                builder: (context) => AlertDialogWidget(
+                  title: "Видалення регіону",
+                  content: "Ви точно впевнені, що хочете видалити регіон?",
+                  acceptButtonText: "Так",
+                  cancelButtonText: "Ні",
+                  onAcceptPressed: () async {
+                    if (widget.unit.raionUid != null) {
+                      await FirebaseMessaging.instance.unsubscribeFromTopic(
+                        widget.unit.raionUid!,
+                      );
+                      debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
+                      await storage.remove(widget.unit);
+                    } else if (widget.unit.oblastUid != null) {
+                      await FirebaseMessaging.instance.unsubscribeFromTopic(
+                        widget.unit.oblastUid!,
+                      );
+                      debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
+                      await storage.remove(widget.unit);
+                    } else if (widget.unit.hromadaUid != null) {
+                      debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
+                      await storage.remove(widget.unit);
+                    }
+                    Navigator.pop(context); // закрив діалог
+                    Navigator.of(context).pushAndRemoveUntil(
+                      CupertinoPageRoute(
+                        builder: (_) => const RaionsListPage(),
+                      ),
+                      (route) => false, // ❌ очищає ВСЕ
+                    );
+                  },
+                  onCancelPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
               );
             },
             icon: Icon(
@@ -148,12 +166,14 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                     ),
                   ),
                   SizedBox(height: constraints.maxHeight * 0.03),
-          
+
                   Column(
                     children: [
                       Image(
                         image: AssetImage("assets/megaphone.png"),
-                        color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
+                        color: widget.isActiveAlarm
+                            ? Colors.red
+                            : Color.fromARGB(255, 247, 135, 50),
                         height: constraints.maxHeight * 0.3,
                         fit: BoxFit.cover,
                         width: constraints.maxWidth * 0.6,
@@ -164,18 +184,22 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                             ? "Увага! У вашому регіоні викид!"
                             : "Викиду немає",
                         style: TextStyle(
-                          color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
+                          color: widget.isActiveAlarm
+                              ? Colors.red
+                              : Color.fromARGB(255, 247, 135, 50),
                           fontSize: 20,
                         ),
                       ),
                       SizedBox(height: constraints.maxHeight * 0.03),
-          
+
                       Text(
                         widget.isActiveAlarm
                             ? "Пройдіть в найближче укриття!"
                             : "Слідкуйте за подальшими оновленнями",
                         style: TextStyle(
-                          color: widget.isActiveAlarm ? Colors.red : Color.fromARGB(255, 247, 135, 50),
+                          color: widget.isActiveAlarm
+                              ? Colors.red
+                              : Color.fromARGB(255, 247, 135, 50),
                         ),
                       ),
                     ],
@@ -184,7 +208,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
               );
             },
           ),
-        
+
           // КОНТЕНТ
           // Expanded(
           //   child: LayoutBuilder(
