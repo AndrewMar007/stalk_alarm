@@ -1,7 +1,3 @@
-// main.dart — ✅ просто заміни цим файлом
-// ✅ Зміни: тепер у foreground пуш прокидується в AlarmBloc (PushAlarmEvent),
-// щоб “громада/район/область” можна було показати в UI.
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -16,10 +12,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_event.dart';
 import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc.dart';
-import 'package:stalc_alarm/view/screens/router/cupertino_bottom_navigation_bar.dart';
+import 'package:stalc_alarm/view/screens/cupertino_bottom_navigation_bar.dart';
 
 import 'firebase_options.dart';
 import 'injection_container.dart' as di;
+import 'router/route_generator.dart';
 
 // ===== Local notifications plugin =====
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
@@ -297,6 +294,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
+      // initialRoute: '/',
+      // onGenerateRoute: RouteGenerator.generateRoute,
       home: const CupertinoBottomBar(),
     );
   }

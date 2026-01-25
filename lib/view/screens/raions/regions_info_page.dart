@@ -68,6 +68,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                 context: context,
                 useRootNavigator: false,
                 builder: (context) => AlertDialogWidget(
+                  icon: Icons.location_off_rounded,
                   title: "Видалення регіону",
                   content: "Ви точно впевнені, що хочете видалити регіон?",
                   acceptButtonText: "Так",

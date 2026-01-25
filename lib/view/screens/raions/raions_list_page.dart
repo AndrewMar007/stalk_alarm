@@ -8,7 +8,7 @@ import '../../../core/ua_hromadas_dart_files/agregator/agregator.dart';
 import '../../bloc/alarm_bloc/alarm_bloc.dart';
 import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
 import '../raions/oblasts_page.dart';
-import '../raions/raions_info_page.dart';
+import 'regions_info_page.dart';
 
 // ✅ ДОДАЙ СВІЙ АГРЕГАТОР (підправ шлях, якщо інший)
 

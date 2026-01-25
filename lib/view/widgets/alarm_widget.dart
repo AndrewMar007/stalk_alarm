@@ -32,10 +32,12 @@ class AlertDialogWidget extends StatelessWidget {
   final String cancelButtonText;
   final VoidCallback? onAcceptPressed;
   final VoidCallback? onCancelPressed;
+  final IconData icon;
 
   const AlertDialogWidget({
     super.key,
     required this.title,
+    required this.icon,
     required this.content,
     required this.acceptButtonText,
     required this.cancelButtonText,
@@ -112,7 +114,7 @@ class AlertDialogWidget extends StatelessWidget {
                   title: Column(
                     children: [
                       Icon(
-                        Icons.location_off_rounded,
+                        icon,
                         color: Color.fromARGB(255, 247, 135, 50),
                         size: 100,
                       ),
@@ -148,7 +150,7 @@ class AlertDialogWidget extends StatelessWidget {
                         width: 80,
                         child: Center(
                           child: Text(
-                            'Так',
+                            acceptButtonText,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 15, color: accent),
                           ),
@@ -167,7 +169,7 @@ class AlertDialogWidget extends StatelessWidget {
                         height: 40,
                         child: Center(
                           child: Text(
-                            'Ні',
+                            cancelButtonText,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 15, color: accent),
                           ),
