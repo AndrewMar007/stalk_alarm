@@ -19,11 +19,12 @@ class Raion {
   final String? uid;
   final String? oblastUid;
   final String? title;
-  
+  final String? titleEng;
   const Raion({
     required this.uid,
     required this.oblastUid,
     required this.title,
+    required this.titleEng
   });
 }
 

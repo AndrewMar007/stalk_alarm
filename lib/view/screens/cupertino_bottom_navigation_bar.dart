@@ -6,6 +6,7 @@ import 'package:stalc_alarm/view/screens/main_screen.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/screens/settings_page.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../router/route_generator.dart';
 
 class CupertinoBottomBar extends StatefulWidget {
@@ -52,6 +53,7 @@ class _CupertinoBottomBarState extends State<CupertinoBottomBar> {
     final media = MediaQuery.of(context);
     final safeBottom = media.padding.bottom;
     final w = media.size.width;
+    final t = AppLocalizations.of(context)!;
 
     final baseTabBarHeight = (kBottomNavigationBarHeight + (w < 360 ? 6 : 10))
         .clamp(52.0, 72.0);
@@ -121,39 +123,39 @@ class _CupertinoBottomBarState extends State<CupertinoBottomBar> {
                   backgroundColor: const Color.fromARGB(255, 23, 13, 2),
                   activeColor: const Color.fromARGB(255, 249, 162, 56),
                   inactiveColor: const Color.fromARGB(255, 206, 113, 42),
-                  items: const [
+                  items: [
                     BottomNavigationBarItem(
-                      icon: BottomBarItem(icon: Icons.map, text: "Мапа"),
-                      activeIcon: BottomBarItem(icon: Icons.map, text: "Мапа"),
+                      icon: BottomBarItem(icon: Icons.map, text: t.map),
+                      activeIcon: BottomBarItem(icon: Icons.map, text: t.map),
                     ),
                     BottomNavigationBarItem(
                       icon: BottomBarItem(
                         icon: Icons.crisis_alert_outlined,
-                        text: "Тривоги",
+                        text: t.alarm,
                       ),
                       activeIcon: BottomBarItem(
                         icon: Icons.crisis_alert_outlined,
-                        text: "Тривоги",
+                        text: t.alarm,
                       ),
                     ),
                     BottomNavigationBarItem(
                       icon: BottomBarItem(
                         icon: Icons.info_outline_rounded,
-                        text: "Корисне",
+                        text: t.useful,
                       ),
                       activeIcon: BottomBarItem(
                         icon: Icons.info_outline_rounded,
-                        text: "Корисне",
+                        text: t.useful,
                       ),
                     ),
                     BottomNavigationBarItem(
                       icon: BottomBarItem(
                         icon: Icons.settings_outlined,
-                        text: "Налаштування",
+                        text: t.settings,
                       ),
                       activeIcon: BottomBarItem(
                         icon: Icons.settings_outlined,
-                        text: "Налаштування",
+                        text: t.settings,
                       ),
                     ),
                   ],

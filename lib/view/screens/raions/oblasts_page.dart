@@ -1,13 +1,13 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:stalc_alarm/models/admin_units.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_page.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
-import '../../../core/nav/app_tab_controller.dart';
-import '../../../core/nav/selection_notifier.dart';
 import '../../../core/network/internet_guard.dart';
 import '../../../core/network/tap_internet_guard.dart';
 import '../../../core/values/lists.dart';
@@ -53,7 +53,6 @@ class _OblastsPageState extends State<OblastsPage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _net = di.sl<InternetGuard>(); // ✅ беремо з DI
   }
@@ -64,6 +63,27 @@ class _OblastsPageState extends State<OblastsPage> {
     super.dispose();
   }
 
+  bool _isEnglish(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'en';
+
+  String _displayTitle(BuildContext context, Oblast o) {
+    final en = (o.titleEng ?? '').trim();
+    final uk = (o.title ?? '').trim();
+
+    if (_isEnglish(context)) {
+      // ✅ якщо en порожня — fallback на uk
+      return en.isNotEmpty ? en : uk;
+    }
+    return uk.isNotEmpty ? uk : en;
+  }
+
+  /// Для пошуку: шукаємо і по uk, і по en (інакше в EN не знайде Kyiv, якщо query англійською)
+  bool _matchesQuery(Oblast o, String qLower) {
+    final uk = (o.title ?? '').toLowerCase();
+    final en = (o.titleEng ?? '').toLowerCase();
+    return uk.contains(qLower) || en.contains(qLower);
+  }
+
   List<Oblast> get _allOblastsWithoutLast {
     final list = ListsOfAdministrativeUnits.oblasts;
     if (list.isEmpty) return <Oblast>[];
@@ -71,21 +91,22 @@ class _OblastsPageState extends State<OblastsPage> {
     return list.take(list.length - 1).toList();
   }
 
-  List<Oblast> get _filteredOblasts {
+  List<Oblast> _filteredOblasts(BuildContext context) {
     final q = _query.trim().toLowerCase();
     final all = _allOblastsWithoutLast;
 
     if (q.isEmpty) return all;
 
-    return all.where((o) {
-      final title = (o.title ?? '').toLowerCase();
-      return title.contains(q);
-    }).toList();
+    return all.where((o) => _matchesQuery(o, q)).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = _filteredOblasts;
+    final items = _filteredOblasts(context);
+
+    final isEn = _isEnglish(context);
+    final titleText = isEn ? 'Choose oblast' : 'Оберіть область';
+    final searchHint = isEn ? 'Search oblast...' : 'Пошук області...';
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -96,9 +117,9 @@ class _OblastsPageState extends State<OblastsPage> {
         ),
         backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
-        title: const Text(
-          "Оберіть область",
-          style: TextStyle(
+        title: Text(
+          titleText,
+          style: const TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
           ),
@@ -108,41 +129,36 @@ class _OblastsPageState extends State<OblastsPage> {
             icon: const Icon(Icons.close),
             color: const Color.fromARGB(255, 224, 125, 15),
             onPressed: () {
-              // ✅ Закриваємо весь "ланцюжок" до RaionsListPage
-              Navigator.of(context).popUntil((route) {
-                return route.isFirst;
-              });
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
           ),
         ],
       ),
       body: Stack(
         children: [
-          Positioned(
+          const Positioned(
             left: -50,
             right: -50,
             top: -50,
             bottom: -50,
             child: Image(
-              image: const AssetImage("assets/back.png"),
-              color: const Color.fromARGB(32, 41, 41, 41),
+              image: AssetImage("assets/back.png"),
+              color: Color.fromARGB(32, 41, 41, 41),
             ),
           ),
-          Positioned(
+          const Positioned(
             left: -350,
             right: -350,
             bottom: -250,
             top: -100,
             child: Image(
-              image: const AssetImage("assets/radiation.png"),
-              color: const Color.fromARGB(17, 55, 27, 6),
+              image: AssetImage("assets/radiation.png"),
+              color: Color.fromARGB(17, 55, 27, 6),
             ),
           ),
 
-          // контент + пошук
           Column(
             children: [
-              // 🔥 лінія під appbar
               SizedBox(
                 height: 2,
                 width: double.infinity,
@@ -151,7 +167,6 @@ class _OblastsPageState extends State<OblastsPage> {
                 ),
               ),
 
-              // 🔎 поле пошуку
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: TextField(
@@ -163,7 +178,7 @@ class _OblastsPageState extends State<OblastsPage> {
                   ),
                   cursorColor: const Color.fromARGB(255, 247, 135, 50),
                   decoration: InputDecoration(
-                    hintText: 'Пошук області...',
+                    hintText: searchHint,
                     hintStyle: const TextStyle(
                       color: Color.fromARGB(130, 248, 137, 41),
                     ),
@@ -201,7 +216,6 @@ class _OblastsPageState extends State<OblastsPage> {
                 ),
               ),
 
-              // список
               Expanded(
                 child: items.isEmpty && _query.isNotEmpty
                     ? const EmptySearchResult()
@@ -210,19 +224,15 @@ class _OblastsPageState extends State<OblastsPage> {
                           itemCount: items.length,
                           itemBuilder: (context, index) {
                             final oblast = items[index];
+                            final showTitle = _displayTitle(context, oblast);
 
                             return ListTile(
                               tileColor: const Color.fromARGB(4, 249, 189, 25),
                               leading: SizedBox(
                                 height: constrains.maxHeight * 0.06,
-                                child: Image(
-                                  image: const AssetImage('assets/bullet.png'),
-                                  color: const Color.fromARGB(
-                                    255,
-                                    224,
-                                    125,
-                                    15,
-                                  ),
+                                child: const Image(
+                                  image: AssetImage('assets/bullet.png'),
+                                  color: Color.fromARGB(255, 224, 125, 15),
                                 ),
                               ),
                               title: Row(
@@ -230,14 +240,9 @@ class _OblastsPageState extends State<OblastsPage> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      oblast.title ?? '',
+                                      showTitle,
                                       style: const TextStyle(
-                                        color: Color.fromARGB(
-                                          255,
-                                          248,
-                                          137,
-                                          41,
-                                        ),
+                                        color: Color.fromARGB(255, 248, 137, 41),
                                         fontSize: 16,
                                       ),
                                     ),
@@ -256,20 +261,19 @@ class _OblastsPageState extends State<OblastsPage> {
                                     action: () async {
                                       await FirebaseMessaging.instance
                                           .subscribeToTopic(oblast.uid!);
-                                      debugPrint(
-                                        '✅ subscribed to ${oblast.uid}',
-                                      );
+                                      debugPrint('✅ subscribed to ${oblast.uid}');
 
                                       await SavedAdminUnitsStorage().add(
                                         Oblast(
                                           uid: oblast.uid,
                                           title: oblast.title,
-                                          titleEng: oblast.titleEng
+                                          titleEng: oblast.titleEng,
                                         ),
                                         Raion(
                                           uid: null,
                                           oblastUid: null,
                                           title: null,
+                                          titleEng: null
                                         ),
                                         Hromada(
                                           uid: null,
@@ -283,11 +287,10 @@ class _OblastsPageState extends State<OblastsPage> {
                                     },
                                   );
                                 } else {
-                                  final changed = await Navigator.of(context)
-                                      .pushNamed(
-                                        '/raionsScreen',
-                                        arguments: oblast,
-                                      );
+                                  final changed = await Navigator.of(context).pushNamed(
+                                    '/raionsScreen',
+                                    arguments: oblast,
+                                  );
 
                                   if (changed == true && mounted) {
                                     Navigator.of(context).pop(true);

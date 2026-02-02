@@ -40,4 +40,46 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get selectHromada => 'Громади';
+
+  @override
+  String get change => 'Змінити';
+
+  @override
+  String get psiRadiation => 'Псі-випромінювання';
+
+  @override
+  String get abnormalFrequency => 'Аномальна частота';
+
+  @override
+  String get units => 'Од';
+
+  @override
+  String get frequency => 'кГц';
+
+  @override
+  String get alarmVolume => 'Гучність сигналу тривоги';
+
+  @override
+  String get level => 'Рівень';
+
+  @override
+  String get alarmStart => 'Початок тривоги';
+
+  @override
+  String get alarmEnd => 'Кінець тривоги';
+
+  @override
+  String get alarmStop => 'Зупинити';
+
+  @override
+  String get notifications => 'Сповіщення';
+
+  @override
+  String get enabled => 'Увімкнені';
+
+  @override
+  String get disabled => 'Вимкнені';
+
+  @override
+  String get notificationFunc => 'Тест функцій сповіщень';
 }

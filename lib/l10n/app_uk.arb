@@ -10,5 +10,20 @@
   "regions": "Регіони",
   "selectOblast": "Область",
   "selectRaion": "Район",
-  "selectHromada": "Громади"
+  "selectHromada": "Громади",
+  "language": "Мова",
+  "change": "Змінити",
+  "psiRadiation": "Псі-випромінювання",
+  "abnormalFrequency": "Аномальна частота",
+  "units": "Од",
+  "frequency": "кГц",
+  "alarmVolume": "Гучність сигналу тривоги",
+  "level": "Рівень",
+  "alarmStart": "Початок тривоги",
+  "alarmEnd": "Кінець тривоги",
+  "alarmStop": "Зупинити",
+  "notifications": "Сповіщення",
+  "enabled": "Увімкнені",
+  "disabled": "Вимкнені",
+  "notificationFunc": "Тест функцій сповіщень"
 }

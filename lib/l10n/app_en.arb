@@ -10,5 +10,20 @@
   "regions": "Regions",
   "selectOblast": "Region",
   "selectRaion": "Raion",
-  "selectHromada": "Hromada"
+  "selectHromada": "Hromada",
+  "language": "Language",
+  "change": "Change",
+  "psiRadiation": "Psi-radiation",
+  "abnormalFrequency": "Abnormal frequency",
+  "units": "u",
+  "frequency": "kHz",
+  "alarmVolume": "Alarm volume",
+  "level": "Level",
+  "alarmStart": "Alarm start",
+  "alarmEnd": "Alarm end",
+  "alarmStop": "Stop",
+  "notifications": "Notifications",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "notificationFunc": "Notification functionality test"
 }

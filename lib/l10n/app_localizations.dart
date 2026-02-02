@@ -100,69 +100,153 @@ abstract class AppLocalizations {
 
   /// No description provided for @appTitle.
   ///
-  /// In en, this message translates to:
+  /// In uk, this message translates to:
   /// **'Stalc Alarm'**
   String get appTitle;
 
   /// No description provided for @settings.
   ///
-  /// In en, this message translates to:
-  /// **'Settings'**
+  /// In uk, this message translates to:
+  /// **'Налаштування'**
   String get settings;
 
   /// No description provided for @language.
   ///
-  /// In en, this message translates to:
-  /// **'Language'**
+  /// In uk, this message translates to:
+  /// **'Мова'**
   String get language;
 
   /// No description provided for @ongoing.
   ///
-  /// In en, this message translates to:
-  /// **'ongoing'**
+  /// In uk, this message translates to:
+  /// **'триває'**
   String get ongoing;
 
   /// No description provided for @alarm.
   ///
-  /// In en, this message translates to:
-  /// **'Alerts'**
+  /// In uk, this message translates to:
+  /// **'Тривоги'**
   String get alarm;
 
   /// No description provided for @map.
   ///
-  /// In en, this message translates to:
-  /// **'Map'**
+  /// In uk, this message translates to:
+  /// **'Мапа'**
   String get map;
 
   /// No description provided for @useful.
   ///
-  /// In en, this message translates to:
-  /// **'Useful'**
+  /// In uk, this message translates to:
+  /// **'Корисне'**
   String get useful;
 
   /// No description provided for @regions.
   ///
-  /// In en, this message translates to:
-  /// **'Regions'**
+  /// In uk, this message translates to:
+  /// **'Регіони'**
   String get regions;
 
   /// No description provided for @selectOblast.
   ///
-  /// In en, this message translates to:
-  /// **'Region'**
+  /// In uk, this message translates to:
+  /// **'Область'**
   String get selectOblast;
 
   /// No description provided for @selectRaion.
   ///
-  /// In en, this message translates to:
-  /// **'Raion'**
+  /// In uk, this message translates to:
+  /// **'Район'**
   String get selectRaion;
 
   /// No description provided for @selectHromada.
   ///
-  /// In en, this message translates to:
-  /// **'Hromada'**
+  /// In uk, this message translates to:
+  /// **'Громади'**
   String get selectHromada;
+
+  /// No description provided for @change.
+  ///
+  /// In uk, this message translates to:
+  /// **'Змінити'**
+  String get change;
+
+  /// No description provided for @psiRadiation.
+  ///
+  /// In uk, this message translates to:
+  /// **'Псі-випромінювання'**
+  String get psiRadiation;
+
+  /// No description provided for @abnormalFrequency.
+  ///
+  /// In uk, this message translates to:
+  /// **'Аномальна частота'**
+  String get abnormalFrequency;
+
+  /// No description provided for @units.
+  ///
+  /// In uk, this message translates to:
+  /// **'Од'**
+  String get units;
+
+  /// No description provided for @frequency.
+  ///
+  /// In uk, this message translates to:
+  /// **'кГц'**
+  String get frequency;
+
+  /// No description provided for @alarmVolume.
+  ///
+  /// In uk, this message translates to:
+  /// **'Гучність сигналу тривоги'**
+  String get alarmVolume;
+
+  /// No description provided for @level.
+  ///
+  /// In uk, this message translates to:
+  /// **'Рівень'**
+  String get level;
+
+  /// No description provided for @alarmStart.
+  ///
+  /// In uk, this message translates to:
+  /// **'Початок тривоги'**
+  String get alarmStart;
+
+  /// No description provided for @alarmEnd.
+  ///
+  /// In uk, this message translates to:
+  /// **'Кінець тривоги'**
+  String get alarmEnd;
+
+  /// No description provided for @alarmStop.
+  ///
+  /// In uk, this message translates to:
+  /// **'Зупинити'**
+  String get alarmStop;
+
+  /// No description provided for @notifications.
+  ///
+  /// In uk, this message translates to:
+  /// **'Сповіщення'**
+  String get notifications;
+
+  /// No description provided for @enabled.
+  ///
+  /// In uk, this message translates to:
+  /// **'Увімкнені'**
+  String get enabled;
+
+  /// No description provided for @disabled.
+  ///
+  /// In uk, this message translates to:
+  /// **'Вимкнені'**
+  String get disabled;
+
+  /// No description provided for @notificationFunc.
+  ///
+  /// In uk, this message translates to:
+  /// **'Тест функцій сповіщень'**
+  String get notificationFunc;
 }
 
 class _AppLocalizationsDelegate

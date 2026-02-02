@@ -5,6 +5,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:stalc_alarm/view/widgets/custom_tick_mark_shape.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
+import 'package:stalc_alarm/l10n/app_localizations.dart';
+import 'package:stalc_alarm/main.dart'; // ✅ LocaleController
+
 const MethodChannel _alarmNative = MethodChannel('stalk_alarm/alarm');
 
 class SettingsPage extends StatefulWidget {
@@ -145,21 +148,107 @@ class _SettingsPageState extends State<SettingsPage>
     } catch (_) {}
   }
 
+  // =========================
+  // ✅ Language switcher
+  // =========================
+  Locale _effectiveLocale(BuildContext context) {
+    final forced = LocaleController.instance.locale.value;
+    return forced ?? Localizations.localeOf(context);
+  }
+
+  String _langLabel(BuildContext context) {
+    final l = _effectiveLocale(context).languageCode;
+    return l == 'en' ? 'English' : 'Українська';
+  }
+
+  Future<void> _pickLanguage() async {
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color.fromRGBO(23, 13, 2, 1),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        const accent = Color.fromARGB(255, 248, 137, 41);
+
+        Widget tile({
+          required String title,
+          required String subtitle,
+          required Locale? locale,
+        }) {
+          return ListTile(
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(color: accent.withOpacity(0.7)),
+            ),
+            onTap: () async {
+              Navigator.of(ctx).pop();
+              await LocaleController.instance.set(locale);
+              if (!mounted) return;
+              setState(() {});
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 10),
+              tile(
+                title: '🇺🇦 Українська',
+                subtitle: 'uk (за замовчуванням)',
+                locale: const Locale('uk'),
+              ),
+              tile(
+                title: '🇺🇸 English',
+                subtitle: 'en',
+                locale: const Locale('en'),
+              ),
+
+              const SizedBox(height: 14),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const bg = Color.fromRGBO(23, 13, 2, 1);
     const accent = Color.fromARGB(255, 248, 137, 41);
+
+    final t = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
         centerTitle: true,
-        title: const Text(
-          'Налаштування',
-          style: TextStyle(
+        title: Text(
+          t.settings,
+          style: const TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
-            fontSize: 19, // можна теж адаптивити, але AppBar часто ок з фіксом
+            fontSize: 19,
           ),
         ),
       ),
@@ -168,24 +257,21 @@ class _SettingsPageState extends State<SettingsPage>
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
 
-          // Скейлер від ширини: стабільний для phone/tablet/web
           double ui(double base, {double min = 0, double max = 9999}) {
             final v = base * (w / 390.0);
             return v.clamp(min, max).toDouble();
           }
 
-          // Часто корисно: "залежить від ширини, але не виходить за межі"
           double fromW(double factor, {double min = 0, double max = 9999}) {
             return (w * factor).clamp(min, max).toDouble();
           }
 
-          // Висотні речі — тільки там, де воно реально висотне (і h не infinity)
           double fromH(double factor, {double min = 0, double max = 9999}) {
             return (h * factor).clamp(min, max).toDouble();
           }
 
           final headerH = fromH(
-            0.25,
+            0.31,
             min: ui(150, min: 130, max: 210),
             max: ui(240, min: 190, max: 280),
           );
@@ -214,7 +300,6 @@ class _SettingsPageState extends State<SettingsPage>
             height: h,
             child: Stack(
               children: [
-                // Фон
                 Positioned(
                   left: -50,
                   right: -50,
@@ -238,7 +323,6 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                 ),
 
-                // Верхня лінія
                 SizedBox(
                   height: ui(2, min: 2, max: 2),
                   width: double.infinity,
@@ -247,14 +331,15 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                 ),
 
-                // Контент (скрол, щоб не було overflow на малих екранах)
                 SafeArea(
                   bottom: false,
                   child: SingleChildScrollView(
                     padding: EdgeInsets.only(bottom: ui(20, min: 16, max: 28)),
                     child: Column(
                       children: [
-                        // Header (гучність)
+                        // =========================
+                        // Header (alarm volume)
+                        // =========================
                         Container(
                           color: const Color.fromARGB(4, 249, 189, 25),
                           height: headerH,
@@ -277,7 +362,7 @@ class _SettingsPageState extends State<SettingsPage>
                                     ),
                                     Expanded(
                                       child: Text(
-                                        'Гучність сигналу тривоги',
+                                        t.alarmVolume,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -290,8 +375,8 @@ class _SettingsPageState extends State<SettingsPage>
                                     SizedBox(width: gapXS),
                                     Text(
                                       _cur == 0
-                                          ? 'Рівень: 0% (вимкнено)'
-                                          : 'Рівень: ${_percent()}%',
+                                          ? '${t.level}: 0% (${t.disabled})'
+                                          : '${t.level}: ${_percent()}%',
                                       style: TextStyle(
                                         fontSize: smallSize,
                                         color: accent,
@@ -340,8 +425,30 @@ class _SettingsPageState extends State<SettingsPage>
                               ),
 
                               SizedBox(height: fromH(0.01, min: 8, max: 14)),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: padX),
+                                child: Align(
+                                  alignment: AlignmentGeometry.centerLeft,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.account_tree_outlined,
+                                        color: accent,
+                                        size: iconM,
+                                      ),
+                                      SizedBox(
+                                        width: fromW(0.02, min: 8, max: 14),
+                                      ),
+                                      Text(
+                                        t.notificationFunc,
+                                        style: TextStyle(color: accent),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: fromH(0.04, min: 10, max: 18)),
 
-                              // Кнопки тесту
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: padX),
                                 child: Row(
@@ -360,7 +467,7 @@ class _SettingsPageState extends State<SettingsPage>
                                           vertical: btnPadY,
                                         ),
                                         child: Text(
-                                          'Початок тривоги',
+                                          t.alarmStart,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: btnFont,
@@ -382,7 +489,7 @@ class _SettingsPageState extends State<SettingsPage>
                                           vertical: btnPadY,
                                         ),
                                         child: Text(
-                                          'Кінець тривоги',
+                                          t.alarmEnd,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: btnFont,
@@ -410,7 +517,7 @@ class _SettingsPageState extends State<SettingsPage>
                                           vertical: btnPadY,
                                         ),
                                         child: Text(
-                                          'Зупинити',
+                                          t.alarmStop,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: btnFont,
@@ -426,7 +533,6 @@ class _SettingsPageState extends State<SettingsPage>
                           ),
                         ),
 
-                        // Divider
                         Container(
                           height: ui(2, min: 2, max: 2),
                           decoration: const BoxDecoration(
@@ -436,7 +542,9 @@ class _SettingsPageState extends State<SettingsPage>
 
                         SizedBox(height: gapM),
 
-                        // Notifications card (адаптивні паддінги/шрифти/ікони)
+                        // =========================
+                        // Notifications card
+                        // =========================
                         Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: ui(16, min: 12, max: 24),
@@ -477,7 +585,7 @@ class _SettingsPageState extends State<SettingsPage>
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Сповіщення',
+                                            t.notifications,
                                             style: TextStyle(
                                               color: accent,
                                               fontWeight: FontWeight.w700,
@@ -489,8 +597,8 @@ class _SettingsPageState extends State<SettingsPage>
                                           ),
                                           Text(
                                             _notificationsEnabled
-                                                ? 'Увімкнені'
-                                                : 'Вимкнені',
+                                                ? t.enabled
+                                                : t.disabled,
                                             style: TextStyle(
                                               fontSize: smallSize,
                                               color: const Color.fromARGB(
@@ -548,8 +656,6 @@ class _SettingsPageState extends State<SettingsPage>
                                   ],
                                 ),
                               ),
-
-                              // Верхній градієнт
                               Positioned(
                                 top: 0,
                                 left: ui(14, min: 12, max: 18),
@@ -569,8 +675,6 @@ class _SettingsPageState extends State<SettingsPage>
                                   ),
                                 ),
                               ),
-
-                              // Нижній градієнт
                               Positioned(
                                 bottom: 0,
                                 left: ui(14, min: 12, max: 18),
@@ -596,10 +700,143 @@ class _SettingsPageState extends State<SettingsPage>
 
                         SizedBox(height: gapS),
 
-                        // (Поки не використовуєш) _dndGranted — лишив як є, щоб не ламати логіку
-                        // Можеш потім додати таким же стилем, якщо треба:
-                        // SizedBox(height: gapS),
-                        // ...
+                        // =========================
+                        // ✅ Language card
+                        // =========================
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ui(16, min: 12, max: 24),
+                          ),
+                          child: Stack(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ui(16, min: 12, max: 22),
+                                  vertical: ui(10, min: 8, max: 14),
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    ui(14, min: 12, max: 18),
+                                  ),
+                                  border: const Border(
+                                    left: BorderSide(
+                                      color: Color.fromARGB(90, 248, 137, 41),
+                                      width: 1,
+                                    ),
+                                    right: BorderSide(
+                                      color: Color.fromARGB(90, 248, 137, 41),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.language,
+                                      color: accent,
+                                      size: iconS,
+                                    ),
+                                    SizedBox(width: ui(12, min: 10, max: 16)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            t.language,
+                                            style: TextStyle(
+                                              color: accent,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: titleSize,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height: ui(2, min: 2, max: 4),
+                                          ),
+                                          Text(
+                                            _langLabel(context),
+                                            style: TextStyle(
+                                              fontSize: smallSize,
+                                              color: const Color.fromARGB(
+                                                180,
+                                                248,
+                                                137,
+                                                41,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    GradientBorderButton(
+                                      topGradient: topButtonGradient,
+                                      bottomGradient: bottomButtonGradient,
+                                      radius: ui(30, min: 22, max: 34),
+                                      strokeWidth: 1,
+                                      onTap: _pickLanguage,
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: btnPadX,
+                                          vertical: btnPadY,
+                                        ),
+                                        child: Text(
+                                          t.change,
+                                          style: TextStyle(
+                                            fontSize: btnFont,
+                                            color: accent,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                left: ui(14, min: 12, max: 18),
+                                right: ui(14, min: 12, max: 18),
+                                child: Container(
+                                  height: ui(1.5, min: 1.2, max: 1.8),
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Color.fromARGB(4, 249, 189, 25),
+                                        Color.fromARGB(169, 248, 138, 41),
+                                        Color.fromARGB(4, 249, 189, 25),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: ui(14, min: 12, max: 18),
+                                right: ui(14, min: 12, max: 18),
+                                child: Container(
+                                  height: ui(1.5, min: 1.2, max: 1.8),
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Color.fromARGB(4, 249, 189, 25),
+                                        Color.fromARGB(169, 248, 138, 41),
+                                        Color.fromARGB(4, 249, 189, 25),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: gapS),
+
+                        // _dndGranted поки не використовується — залишив як є
+                        // Можеш потім додати ще card, якщо треба
                       ],
                     ),
                   ),

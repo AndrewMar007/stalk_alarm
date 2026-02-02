@@ -40,4 +40,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectHromada => 'Hromada';
+
+  @override
+  String get change => 'Change';
+
+  @override
+  String get psiRadiation => 'Psi-radiation';
+
+  @override
+  String get abnormalFrequency => 'Abnormal frequency';
+
+  @override
+  String get units => 'u';
+
+  @override
+  String get frequency => 'kHz';
+
+  @override
+  String get alarmVolume => 'Alarm volume';
+
+  @override
+  String get level => 'Level';
+
+  @override
+  String get alarmStart => 'Alarm start';
+
+  @override
+  String get alarmEnd => 'Alarm end';
+
+  @override
+  String get alarmStop => 'Stop';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get enabled => 'Enabled';
+
+  @override
+  String get disabled => 'Disabled';
+
+  @override
+  String get notificationFunc => 'Notification functionality test';
 }

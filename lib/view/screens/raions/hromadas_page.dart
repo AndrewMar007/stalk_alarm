@@ -273,6 +273,7 @@ class _HromadasPageState extends State<HromadasPage> {
                                           uid: widget.raion.uid,
                                           oblastUid: widget.raion.oblastUid,
                                           title: widget.raion.title,
+                                          titleEng: widget.raion.titleEng
                                         ),
                                         Hromada(
                                           uid: null,
@@ -348,6 +349,7 @@ class _HromadasPageState extends State<HromadasPage> {
                                         uid: null,
                                         oblastUid: null,
                                         title: null,
+                                        titleEng: null
                                       ),
                                       unit,
                                     );

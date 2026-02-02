@@ -6,6 +6,7 @@ import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 import '../../../core/local_storage/raions_storage.dart';
 import '../../../core/nav/selection_notifier.dart';
 import '../../../core/ua_hromadas_dart_files/agregator/agregator.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../router/router_args_models/region_info_args_model.dart';
 import '../../bloc/alarm_bloc/alarm_bloc.dart';
 import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
@@ -130,6 +131,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
 
     return found.first.raionUid; // очікуємо "raion_114"
   }
+  //! Locale check 
+  bool _isEnglish(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'en';
 
   /// ===== Визначення активності =====
   bool _isActiveByUnit(
@@ -176,13 +180,18 @@ class _RaionsListPageState extends State<RaionsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final isEn = _isEnglish(context);
+    final regionTitle = isEn ? "Select a region" : "Оберіть регіон";
+    final regionDescription = isEn ? "Select your region\nto receive future notification" : "Оберіть ваш регіон і слідкуйте за\n майбутніми повідомленнями";
+    final regionButton = isEn ? "Add region" : "Додати регіон";
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 20, 11, 2),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
-        title: const Text(
-          "Регіони",
+        title: Text(
+          t.regions,
           style: TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
@@ -258,7 +267,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                         size: 150,
                       ),
                       Text(
-                        "Оберіть ваш регіон",
+                        regionTitle,
                         style: TextStyle(
                           color: Color.fromARGB(255, 247, 135, 50),
                           fontSize: 25.0,
@@ -266,7 +275,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                       ),
                       SizedBox(height: 20.0),
                       Text(
-                        "Оберіть ваш регіон і слідкуйте за\n майбутніми повідомленнями",
+                        regionDescription,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color.fromARGB(255, 247, 135, 50),
@@ -280,7 +289,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                             vertical: constraints.maxHeight * 0.02,
                           ),
                           child: Text(
-                            "Додати регіон",
+                            regionButton,
                             style: TextStyle(
                               color: Color.fromARGB(255, 247, 135, 50),
                             ),
@@ -359,13 +368,13 @@ class _RaionsListPageState extends State<RaionsListPage> {
                             Expanded(
                               child: Text(
                                 _titleOfUnit(unit),
-                                style: const TextStyle(   
+                                style: const TextStyle(
                                   color: Color.fromARGB(255, 248, 137, 41),
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                            SizedBox(width: 10,),
+                            SizedBox(width: 10),
                             const Icon(
                               Icons.arrow_forward,
                               color: Color.fromARGB(255, 154, 83, 21),

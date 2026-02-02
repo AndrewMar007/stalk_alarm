@@ -7,15 +7,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_event.dart';
 import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc.dart';
-import 'package:stalc_alarm/view/screens/cupertino_bottom_navigation_bar.dart';
 
 import 'firebase_options.dart';
 import 'injection_container.dart' as di;
+import 'l10n/app_localizations.dart';
 import 'router/route_generator.dart';
 
 // ===== Local notifications plugin =====
@@ -33,6 +35,48 @@ const AndroidNotificationChannel silentInfoChannel = AndroidNotificationChannel(
   playSound: false,
 );
 
+/// =========================
+/// ✅ Locale controller + persistence
+/// =========================
+class LocaleController {
+  LocaleController._();
+  static final LocaleController instance = LocaleController._();
+
+  final ValueNotifier<Locale?> locale = ValueNotifier<Locale?>(null);
+
+  static const _prefsKey = 'app_locale';
+
+  Future<void> load() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_prefsKey);
+
+    // null => system locale
+    if (raw == null || raw.isEmpty) {
+      locale.value = null;
+      return;
+    }
+
+    // "uk" or "en"
+    locale.value = Locale(raw);
+  }
+
+  Future<void> set(Locale? newLocale) async {
+    locale.value = newLocale;
+
+    final sp = await SharedPreferences.getInstance();
+    if (newLocale == null) {
+      await sp.remove(_prefsKey);
+    } else {
+      await sp.setString(_prefsKey, newLocale.languageCode);
+    }
+
+    // Якщо в тебе є форматування дат/часу - ініціалізуємо під нову локаль
+    // (Можеш додати інші локалі при потребі)
+    final code = newLocale?.languageCode ?? 'uk';
+    await initializeDateFormatting(code == 'en' ? 'en_US' : 'uk_UA');
+  }
+}
+
 // ===== Background handler =====
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -42,10 +86,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// Формуємо тексти з data payload: type/level/name/title/body
 Map<String, String> _composeTexts(RemoteMessage message) {
-  final type = (message.data['type'] ?? '')
-      .toString(); // ALARM_START / ALARM_END
-  final level = (message.data['level'] ?? message.data['scope'] ?? '')
-      .toString(); // hromada/raion/oblast
+  final type = (message.data['type'] ?? '').toString(); // ALARM_START / ALARM_END
+  final level = (message.data['level'] ?? message.data['scope'] ?? '').toString(); // hromada/raion/oblast
   final name = (message.data['name'] ?? '').toString();
 
   final title = (message.data['title'] ?? 'Stalk Alarm').toString();
@@ -55,8 +97,7 @@ Map<String, String> _composeTexts(RemoteMessage message) {
 
   final region = name.isNotEmpty
       ? name
-      : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '')
-            .toString();
+      : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '').toString();
 
   final fallbackBody = isStart
       ? 'Увага! Насувається викид в "$region"! Пройдіть в найближче укриття!'
@@ -88,7 +129,7 @@ Future<void> _showSilentNotification(RemoteMessage message) async {
         channelDescription: silentInfoChannel.description,
         importance: Importance.high,
         priority: Priority.high,
-        playSound: false, // ✅ ключове
+        playSound: false,
         enableVibration: true,
         visibility: NotificationVisibility.public,
       ),
@@ -147,10 +188,7 @@ Future<void> main() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await fln.initialize(const InitializationSettings(android: androidInit));
 
-  final androidFln = fln
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
+  final androidFln = fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   await androidFln?.createNotificationChannel(silentInfoChannel);
 
   await FirebaseMessaging.instance.requestPermission(
@@ -160,6 +198,8 @@ Future<void> main() async {
   );
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // ✅ Ініціалізуємо форматування дат для стартової локалі (поки load ще не зробив set)
   await initializeDateFormatting('uk_UA');
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -172,6 +212,9 @@ Future<void> main() async {
     ),
   );
 
+  // ✅ Підтягуємо збережену мову ДО runApp
+  await LocaleController.instance.load();
+
   runApp(const AppRoot());
 }
 
@@ -183,9 +226,8 @@ class AppRoot extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) =>
-              AlarmBloc(getCurrentAlarmUseCase: di.sl())
-                ..add(StartAlarmPollingEvent(intervalMs: 15000)),
+          create: (_) => AlarmBloc(getCurrentAlarmUseCase: di.sl())
+            ..add(StartAlarmPollingEvent(intervalMs: 15000)),
         ),
         BlocProvider(
           create: (_) => AlarmHistoryBloc(getAlarmHistoryUseCase: di.sl()),
@@ -204,8 +246,7 @@ class _AppLifecycleGate extends StatefulWidget {
   State<_AppLifecycleGate> createState() => _AppLifecycleGateState();
 }
 
-class _AppLifecycleGateState extends State<_AppLifecycleGate>
-    with WidgetsBindingObserver {
+class _AppLifecycleGateState extends State<_AppLifecycleGate> with WidgetsBindingObserver {
   Timer? _resumeDebounce;
   StreamSubscription<RemoteMessage>? _onMsgSub;
   StreamSubscription<RemoteMessage>? _onOpenedSub;
@@ -215,18 +256,14 @@ class _AppLifecycleGateState extends State<_AppLifecycleGate>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Foreground messages
-    _onMsgSub = FirebaseMessaging.onMessage.listen((
-      RemoteMessage message,
-    ) async {
+    _onMsgSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       await _handleIncomingMessage(message, isForeground: true);
 
-      // ✅ Нове: прокидаємо “громаду/район/область” у BLoC, щоб показати в UI
       final t = _composeTexts(message);
       final type = (t['type'] ?? '').toString();
       final level = (t['level'] ?? '').toString();
       final name = (t['name'] ?? '').toString();
-      final uid = (message.data['uid'] ?? '').toString(); // topic
+      final uid = (message.data['uid'] ?? '').toString();
 
       if (type.isNotEmpty && level.isNotEmpty && name.isNotEmpty) {
         if (!mounted) return;
@@ -235,15 +272,13 @@ class _AppLifecycleGateState extends State<_AppLifecycleGate>
             type: type,
             level: level,
             name: name,
-            uid: uid, // ← topic, типу hromada_UA...
+            uid: uid,
           ),
         );
       }
     });
 
-    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((
-      RemoteMessage message,
-    ) {
+    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       // TODO: навігація якщо треба
     });
   }
@@ -287,16 +322,33 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Stalk Alarm',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
-        useMaterial3: true,
-      ),
-      initialRoute: '/',
-      onGenerateRoute: RouteGenerator.generateRoute,
-      //home: const CupertinoBottomBar(),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
+            useMaterial3: true,
+          ),
+
+          // ✅ Ось це тепер реально перемикає мову
+          locale: locale,
+
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+
+          initialRoute: '/',
+          onGenerateRoute: RouteGenerator.generateRoute,
+        );
+      },
     );
   }
 }

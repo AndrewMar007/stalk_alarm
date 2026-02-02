@@ -23,6 +23,7 @@ import 'package:stalc_alarm/view/widgets/gradient_horizontal_divider.dart';
 import 'package:stalc_alarm/view/widgets/gradient_vertical_divider.dart';
 
 import '../../core/exceptions/failures.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/alert_model.dart';
 import '../bloc/alarm_bloc/alarm_bloc_event.dart';
 
@@ -83,44 +84,36 @@ const verticalGradient = LinearGradient(
 
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
-  Failure? _failure; // ✅ тримаємо failure як об’єкт, не як string
+  Failure? _failure;
 
   Timer? _timer;
   late final Stream<double> s1;
   late final Stream<double> s2;
+
   String _time = '';
 
-  // щоб не перемальовувати SVG без потреби
+  // ✅ тримаємо актуальну locale, щоб _updateTime() не залежав від BuildContext
+  // (оновлюємо в build)
+  String _localeTag = 'uk';
+  String _langCode = 'uk'; // ✅ щоб знати en/uk для 12h/24h
+
   Set<int> _lastIds = {};
 
-  // Для zoom/pan
   final TransformationController _tc = TransformationController();
-
-  // viewBox із SVG
   Rect? _viewBox;
 
-  // Карта id -> Path в SVG координатах (для hit-test)
   final Map<int, Path> _idToPath = {};
-
-  // ✅ Дуже важливо для продуктивності:
   final Map<int, Rect> _idToBounds = {};
 
-  // ===== Internet handling (через InternetGuard) =====
   late final InternetGuard _net;
 
   bool _hasInternet = true;
   bool _dialogOpen = false;
 
-  // ✅ показуємо loader під час відновлення/перезавантаження
   bool _isRestoring = false;
-
-  // ✅ Watchdog щоб лоадер не зависав
   Timer? _restoreWatchdog;
 
-  // ✅ Статус всередині AlertDialog (щоб оновлювався без закриття)
   final ValueNotifier<bool> _dialogConnected = ValueNotifier<bool>(false);
-
-  // ✅ діалог саме для “тапу” (коли натиснув на область без інтернету)
   bool _tapDialogOpen = false;
 
   void _startRestoreWatchdog() {
@@ -187,7 +180,9 @@ class _MainScreenState extends State<MainScreen> {
               icon: ok ? Icons.wifi : Icons.wifi_off,
               content: contentText,
               contentTextStyle: TextStyle(
-                color: ok ? Colors.green : const Color.fromARGB(200, 248, 137, 41),
+                color: ok
+                    ? Colors.green
+                    : const Color.fromARGB(200, 248, 137, 41),
               ),
               acceptButtonText: 'Закрити',
               onAcceptPressed: () {
@@ -367,13 +362,9 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
 
-    // ✅ Беремо один singleton InternetGuard з DI
     _net = di.sl<InternetGuard>();
-
-    // ✅ Вішамо listener (а не створюємо guard тут)
     _net.addListener(_onInternetChanged);
 
-    // стартова перевірка
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ok = await _net.checkNow();
       if (!mounted) return;
@@ -390,7 +381,8 @@ class _MainScreenState extends State<MainScreen> {
 
     s1 = rangedRandomStream(min: 0.0, max: 1.0);
     s2 = rangedRandomStream(min: 150.0, max: 450.0);
-    _updateTime();
+
+    _updateTime(); // ✅ стартове
     _scheduleNextTick();
   }
 
@@ -422,15 +414,25 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // ✅ ТЕПЕР час залежить від локалі
   void _updateTime() {
-    setState(() => _time = DateFormat('HH:mm').format(DateTime.now()));
+    final now = DateTime.now();
+
+    // ✅ en -> 12h (2:32 PM), інші -> 24h (14:32)
+    final fmt = (_langCode == 'en')
+        ? DateFormat.jm(_localeTag) // 12h with AM/PM
+        : DateFormat.Hm(_localeTag); // 24h
+
+    setState(() => _time = fmt.format(now));
   }
 
   /* ===================== Navigation ===================== */
 
   String _oblastTitleById(int id) {
     final uid = "oblast_$id";
-    final found = ListsOfAdministrativeUnits.oblasts.where((o) => o.uid == uid).toList();
+    final found = ListsOfAdministrativeUnits.oblasts
+        .where((o) => o.uid == uid)
+        .toList();
     if (found.isNotEmpty) return found.first.title!;
     return "Невідомо ($uid)";
   }
@@ -575,7 +577,7 @@ class _MainScreenState extends State<MainScreen> {
 
             final id = _hitTestId(svgPoint: svgPoint);
             if (id != null) {
-              await _openOblastDetailsGuarded(id); // ✅ guarded navigation
+              await _openOblastDetailsGuarded(id);
             }
           },
           child: RepaintBoundary(
@@ -603,10 +605,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildCenterContent() {
     if (!_hasInternet) return _buildNoInternet();
-
-    // ✅ server down
     if (_failure is ServerFailure) return _buildServerDown();
-
     if (_isRestoring || svgData == null) return _buildLoading();
     return _buildMap(const Size(double.infinity, double.infinity));
   }
@@ -615,15 +614,34 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = Localizations.localeOf(context);
+    final localeTag = loc.toLanguageTag();
+    final langCode = loc.languageCode;
+    final t = AppLocalizations.of(context)!;
+
+    // ✅ Якщо локаль змінилась — оновимо _localeTag/_langCode + час (без чекання хвилини)
+    if (_localeTag != localeTag || _langCode != langCode) {
+      _localeTag = localeTag;
+      _langCode = langCode;
+
+      // щоб не викликати setState під час build напряму — мікротаск
+      Future.microtask(() {
+        if (!mounted) return;
+        _updateTime();
+      });
+    }
+
     final now = DateTime.now();
-    final formattedDate = DateFormat('d MMMM y', 'uk_UA').format(now);
+
+    // ✅ Дата локалізована
+    final formattedDate = DateFormat.yMMMMd(localeTag).format(now);
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
-        title: const Text(
-          "Мапа",
+        title: Text(
+          t.map,
           style: TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
@@ -641,7 +659,7 @@ class _MainScreenState extends State<MainScreen> {
             _restoreWatchdog?.cancel();
             if (!mounted) return;
             setState(() {
-              _failure = state.failure; // ✅ тримаємо тип
+              _failure = state.failure;
               _isRestoring = false;
             });
           }
@@ -679,24 +697,38 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.49,
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            const Text(
-                                              "Псі-випромінювання",
+                                            Text(
+                                              t.psiRadiation,
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Color.fromARGB(255, 247, 135, 50),
+                                                color: Color.fromARGB(
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(height: constraints.maxHeight * 0.01),
+                                            SizedBox(
+                                              height:
+                                                  constraints.maxHeight * 0.01,
+                                            ),
                                             StreamBuilder(
                                               stream: s1,
                                               builder: (context, snap) {
                                                 return Text(
-                                                  "${(snap.data ?? 0).toStringAsFixed(2)} Од",
+                                                  "${(snap.data ?? 0).toStringAsFixed(2)} ${t.units}",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(255, 247, 135, 50),
+                                                    color: Color.fromARGB(
+                                                      255,
+                                                      247,
+                                                      135,
+                                                      50,
+                                                    ),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -714,25 +746,39 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.488,
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            const Text(
-                                              "Аномальна частота",
+                                            Text(
+                                              t.abnormalFrequency,
                                               textAlign: TextAlign.center,
                                               maxLines: 2,
                                               style: TextStyle(
-                                                color: Color.fromARGB(255, 247, 135, 50),
+                                                color: Color.fromARGB(
+                                                  255,
+                                                  247,
+                                                  135,
+                                                  50,
+                                                ),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(height: constraints.maxHeight * 0.01),
+                                            SizedBox(
+                                              height:
+                                                  constraints.maxHeight * 0.01,
+                                            ),
                                             StreamBuilder(
                                               stream: s2,
                                               builder: (context, snap) {
                                                 return Text(
-                                                  "${(snap.data ?? 150).toStringAsFixed(0)} кГц",
+                                                  "${(snap.data ?? 150).toStringAsFixed(0)} ${t.frequency}",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(255, 247, 135, 50),
+                                                    color: Color.fromARGB(
+                                                      255,
+                                                      247,
+                                                      135,
+                                                      50,
+                                                    ),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -747,16 +793,29 @@ class _MainScreenState extends State<MainScreen> {
                                     height: constraints.maxHeight * 0.06,
                                     width: constraints.maxWidth,
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        SizedBox(height: constraints.maxHeight * 0.005),
-                                        GradientDivider(gradient: dividerGradient, thickness: 2),
-                                        SizedBox(height: constraints.maxHeight * 0.01),
+                                        SizedBox(
+                                          height: constraints.maxHeight * 0.005,
+                                        ),
+                                        GradientDivider(
+                                          gradient: dividerGradient,
+                                          thickness: 2,
+                                        ),
+                                        SizedBox(
+                                          height: constraints.maxHeight * 0.01,
+                                        ),
                                         FittedBox(
                                           child: Text(
                                             "$formattedDate, $_time",
                                             style: const TextStyle(
-                                              color: Color.fromARGB(255, 247, 135, 50),
+                                              color: Color.fromARGB(
+                                                255,
+                                                247,
+                                                135,
+                                                50,
+                                              ),
                                               fontSize: 16.0,
                                             ),
                                           ),
@@ -827,7 +886,6 @@ class _MainScreenState extends State<MainScreen> {
     _timer?.cancel();
     _restoreWatchdog?.cancel();
 
-    // ✅ НЕ dispose singleton
     _net.removeListener(_onInternetChanged);
 
     _dialogConnected.dispose();
