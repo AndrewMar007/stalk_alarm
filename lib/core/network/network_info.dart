@@ -8,7 +8,7 @@ class NetworkInfoImpl extends NetworkInfo {
   @override
   Future<bool> isConnected() async {
     final connectivityResult =
-        await InternetConnectionChecker.instance.hasConnection;
+        await InternetConnectionChecker().hasConnection;
     return connectivityResult;
   }
 }

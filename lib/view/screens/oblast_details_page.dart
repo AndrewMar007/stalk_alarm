@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:stalc_alarm/core/exceptions/failures.dart';
 import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc_state.dart';
 import 'package:stalc_alarm/view/widgets/gradient_vertical_divider.dart';
@@ -8,6 +9,7 @@ import 'package:stalc_alarm/view/widgets/radiation_loader.dart';
 
 import '../../core/helper/date_fromatter.dart';
 import '../bloc/alarm_history_bloc/alarm_history_bloc_event.dart';
+import '../widgets/gradient_outline_border_button.dart';
 import '../widgets/radiation_loader_text.dart';
 
 class OblastDetailsPage extends StatefulWidget {
@@ -39,7 +41,47 @@ const verticalGradient = LinearGradient(
   stops: [0.0, 1.0],
 );
 
+const bottomButtonGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(169, 248, 138, 41),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(169, 248, 138, 41),
+  ],
+  stops: [0.02, 0.4, 0.9, 1.0],
+);
+
+const topButtonGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color.fromARGB(169, 248, 138, 41),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(4, 249, 189, 25),
+    Color.fromARGB(169, 248, 138, 41),
+  ],
+  stops: [0.02, 0.6, 0.8, 1.0],
+);
+
 class _OblastDetailsPageState extends State<OblastDetailsPage> {
+  bool get _isAlwaysAlarmRegion {
+    // ⚠️ ПІДСТАВ СЮДИ СВОЇ ID:
+    // якщо в тебе id = 1..25 по областях — просто заміни числа.
+    const crimeaId = 29; // <-- постав реальний id для АР Крим
+    const luhanskId = 16; // <-- постав реальний id для Луганської області
+
+    return widget.id == crimeaId || widget.id == luhanskId;
+  }
+
+  String get _emptyHistoryText {
+    if (_isAlwaysAlarmRegion) {
+      return "Тривога триває до сих пір.\nРегіон в стані постійної небезпеки.";
+    }
+    return "Викидів не спостерігалось\nв останні 3 дні";
+  }
+
   @override
   void initState() {
     // TODO: implement initState
@@ -89,28 +131,33 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
       ),
       body: Stack(
         children: [
-            const Positioned(
-                    left: -50,
-                    right: -50,
-                    top: -50,
-                    bottom: -50,
-                    child: Image(
-                      image: AssetImage("assets/back.png"),
-                      color: Color.fromARGB(32, 41, 41, 41),
-                    ),
-                  ),
-                  const Positioned(
-                    left: -350,
-                    right: -350,
-                    bottom: -250,
-                    top: -100,
-                    child: Image(
-                      image: AssetImage("assets/radiation.png"),
-                      color: Color.fromARGB(15, 54, 27, 6),
-                    ),
-                  ),
+          const Positioned(
+            left: -50,
+            right: -50,
+            top: -50,
+            bottom: -50,
+            child: Image(
+              image: AssetImage("assets/back.png"),
+              color: Color.fromARGB(32, 41, 41, 41),
+            ),
+          ),
+          const Positioned(
+            left: -350,
+            right: -350,
+            bottom: -250,
+            top: -100,
+            child: Image(
+              image: AssetImage("assets/radiation.png"),
+              color: Color.fromARGB(15, 54, 27, 6),
+            ),
+          ),
           LayoutBuilder(
             builder: (context, constraints) {
+              final double btnPadX = (constraints.maxWidth * 0.1).clamp(10, 10);
+              final double btnPadY = (constraints.maxHeight * 0.05).clamp(
+                10,
+                10,
+              );
               return BlocBuilder<AlarmHistoryBloc, AlarmHistoryBlocState>(
                 builder: (context, state) {
                   if (state is LoadingState) {
@@ -119,7 +166,9 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          RadiationLoader(color: Color.fromARGB(255, 247, 135, 50)),
+                          RadiationLoader(
+                            color: Color.fromARGB(255, 247, 135, 50),
+                          ),
                           RadiationLoaderText(
                             text: "Завантаження даних",
                             style: TextStyle(
@@ -130,6 +179,38 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                       ),
                     );
                   } else if (state is LoadedState) {
+                    // ✅ Якщо за останні N днів подій не було
+                    if (state.listOfModel.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _isAlwaysAlarmRegion
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.check_circle_outline,
+                                color: const Color.fromARGB(255, 224, 125, 15),
+                                size: 90,
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                _emptyHistoryText,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color.fromARGB(255, 224, 125, 15),
+                                  fontSize: 16,
+                                  height: 1.3,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
                     return ListView.separated(
                       itemCount: state.listOfModel.length,
                       itemBuilder: (context, index) {
@@ -148,7 +229,7 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                             ),
                             Container(
                               color: const Color.fromARGB(4, 249, 189, 25),
-          
+
                               child: Column(
                                 children: [
                                   Padding(
@@ -160,7 +241,9 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                                     child: Row(
                                       children: [
                                         Image(
-                                          image: AssetImage("assets/megaphone.png"),
+                                          image: AssetImage(
+                                            "assets/megaphone.png",
+                                          ),
                                           color: Colors.red,
                                           height: constraints.maxHeight * 0.05,
                                           fit: BoxFit.cover,
@@ -195,7 +278,8 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                                     ),
                                   ),
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       SizedBox(
@@ -212,7 +296,12 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                                                         .finishedAt ==
                                                     null
                                                 ? Colors.red
-                                                : Color.fromARGB(255, 247, 135, 50),
+                                                : Color.fromARGB(
+                                                    255,
+                                                    247,
+                                                    135,
+                                                    50,
+                                                  ),
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -237,7 +326,12 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                                                         .finishedAt ==
                                                     null
                                                 ? Colors.red
-                                                : Color.fromARGB(255, 247, 135, 50),
+                                                : Color.fromARGB(
+                                                    255,
+                                                    247,
+                                                    135,
+                                                    50,
+                                                  ),
                                           ),
                                         ),
                                       ),
@@ -246,7 +340,7 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                                 ],
                               ),
                             ),
-          
+
                             SizedBox(height: constraints.maxHeight * 0.04),
                           ],
                         );
@@ -256,8 +350,168 @@ class _OblastDetailsPageState extends State<OblastDetailsPage> {
                         decoration: BoxDecoration(gradient: bottomGradient),
                       ),
                     );
+                  }
+
+                  if (state is RateLimitedState) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.timelapse_sharp,
+                            color: const Color.fromARGB(255, 224, 125, 15),
+                            size: 80,
+                          ),
+                          SizedBox(height: 30),
+                          Text(
+                            'Ліміт історії.\nСпробуйте через - ${state.secondsLeft} с',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 224, 125, 15),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else if (state is ErrorState) {
+                    if (state.failure is InternetFailure) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.wifi_off_rounded,
+                              size: 100,
+                              color: const Color.fromARGB(255, 224, 125, 15),
+                            ),
+                            SizedBox(height: 30),
+                            Text(
+                              "Немає інтернет зʼєднання",
+                              style: TextStyle(
+                                color: const Color.fromARGB(255, 224, 125, 15),
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            GradientBorderButton(
+                              topGradient: topButtonGradient,
+                              bottomGradient: bottomButtonGradient,
+                              radius: 30,
+                              strokeWidth: 1,
+                              onTap: () async {
+                                Navigator.of(context).pop();
+                              },
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: btnPadX,
+                                  vertical: btnPadY,
+                                ),
+                                child: Text(
+                                  'Закрити',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: const Color.fromARGB(
+                                      255,
+                                      224,
+                                      125,
+                                      15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.cloud_off_outlined,
+                              color: Color.fromARGB(255, 224, 125, 15),
+                              size: 90,
+                            ),
+                            SizedBox(height: 20,),
+                            Text(
+                              "Сервер недоступний.\nСпробуйте пізніше.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 224, 125, 15),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                   } else {
-                    return Text("Something went wrong");
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            color: Color.fromARGB(255, 224, 125, 15),
+                            size: 80,
+                          ),
+                          SizedBox(height: 30),
+                          Text(
+                            "Таймер сплинув. \nМожете спробуйуте ще раз",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: const Color.fromARGB(255, 224, 125, 15),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          GradientBorderButton(
+                            topGradient: topButtonGradient,
+                            bottomGradient: bottomButtonGradient,
+                            radius: 30,
+                            strokeWidth: 1,
+                            onTap: () async {
+                              context.read<AlarmHistoryBloc>().add(
+                                GetAlarmHistoryBlocEvent(
+                                  oblastId: widget.id,
+                                  days: 3, // або null, якщо default на сервері
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: btnPadX,
+                                vertical: btnPadY,
+                              ),
+                              child: Text(
+                                'Повторити',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: const Color.fromARGB(
+                                    255,
+                                    224,
+                                    125,
+                                    15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // TextButton(
+                          //   onPressed: () {
+                          //     context.read<AlarmHistoryBloc>().add(
+                          //       GetAlarmHistoryBlocEvent(
+                          //         oblastId: widget.id,
+                          //         days: 3, // або null, якщо default на сервері
+                          //       ),
+                          //     );
+                          //   },
+                          //   child: Text("Повторити"),
+                          // ),
+                        ],
+                      ),
+                    );
                   }
                 },
               );

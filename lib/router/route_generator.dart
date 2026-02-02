@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:stalc_alarm/router/router_args_models/hromadas_page_args_model.dart';
 import 'package:stalc_alarm/router/router_args_models/oblast_details_page_args_model.dart';
@@ -20,29 +21,49 @@ class RouteGenerator {
     switch (settings.name) {
       //On app start routes
       // case '/preLoader':
-      //   return MaterialPageRoute(builder: (_) => const PreLoaderPage());
+      //   return CupertinoPageRoute(builder: (_) => const PreLoaderPage());
       // case '/internetPreLoader':
-      //   return MaterialPageRoute(builder: (_) => const InternetPreLoader());
+      //   return CupertinoPageRoute(builder: (_) => const InternetPreLoader());
       //! Основні сторінки (main pages of app in CupertinoBottomBar)
+      case '/':
       case '/mapScreen':
-        return MaterialPageRoute(builder: (_) => const CupertinoBottomBar());
+        return CupertinoPageRoute(
+          settings: settings,
+          builder: (_) => const CupertinoBottomBar(),
+        );
       case '/settingsScreen':
-        return MaterialPageRoute(builder: (_) => const SettingsPage());
+        return CupertinoPageRoute(
+          settings: settings,
+          builder: (_) => const SettingsPage(),
+        );
       case '/aboutScreen':
-        return MaterialPageRoute(builder: (_) => const HelpPage());
+        return CupertinoPageRoute(
+          settings: settings,
+          builder: (_) => const HelpPage(),
+        );
       case '/raionsListScreen':
-        return MaterialPageRoute(builder: (_) => const RaionsListPage());
+        return CupertinoPageRoute(
+          settings: settings,
+          builder: (_) => const RaionsListPage(),
+        );
       //! Сторінки для вибору регіону (Pages to choose region)
       case '/oblastsScreen':
-        return MaterialPageRoute(builder: (_) => const OblastsPage());
+        return CupertinoPageRoute(
+          settings: settings,
+          builder: (_) => const OblastsPage(),
+        );
       case '/raionsScreen':
         if (args is Oblast) {
-          return MaterialPageRoute(builder: (_) => RaionsPage(oblast: args));
+          return CupertinoPageRoute(
+            settings: settings,
+            builder: (_) => RaionsPage(oblast: args),
+          );
         }
         return _errorRoute();
       case '/hromadasScreen':
         if (args is HromadasPageArgs) {
-          return MaterialPageRoute(
+          return CupertinoPageRoute(
+            settings: settings,
             builder: (_) =>
                 HromadasPage(raion: args.raion, oblast: args.oblast),
           );
@@ -50,7 +71,8 @@ class RouteGenerator {
         return _errorRoute();
       case '/regionInfoScreen':
         if (args is RegionInfoArgs) {
-          return MaterialPageRoute(
+          return CupertinoPageRoute(
+            settings: settings,
             builder: (_) => RaionsInfoPage(
               unit: args.unit,
               isActiveAlarm: args.isActiveAlarm,
@@ -62,7 +84,8 @@ class RouteGenerator {
       //! Page for watch history of alerts by tapping on ragion of map
       case '/oblastDetailsScreen':
         if (args is OblastDetailsPageArgs) {
-          return MaterialPageRoute(
+          return CupertinoPageRoute(
+            settings: settings,
             builder: (_) => OblastDetailsPage(id: args.id, title: args.title),
           );
         }
@@ -77,7 +100,7 @@ class RouteGenerator {
 
   //! If we don't have route in a tree, show error page
   static Route<dynamic> _errorRoute() {
-    return MaterialPageRoute(
+    return CupertinoPageRoute(
       builder: (_) {
         return Scaffold(
           appBar: AppBar(title: Text('Error')),

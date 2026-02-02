@@ -17,3 +17,9 @@ class ErrorState extends AlarmHistoryBlocState {
   final Failure failure;
   ErrorState({required this.failure});
 }
+
+class RateLimitedState extends AlarmHistoryBlocState {
+  final int secondsLeft;
+
+  RateLimitedState({required this.secondsLeft});
+}

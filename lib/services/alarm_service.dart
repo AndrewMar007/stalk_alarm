@@ -21,6 +21,8 @@ class AlarmServiceImpl extends AlarmService {
   @override
   Future<List<AlertModel>> getCurrentAlerts() async {
     try {
+      //final response = await client.get('/this-endpoint-does-not-exist');
+
       final response = await client.get(ApiConfig.alarms);
       final data = response.data['alerts'];
       return _convertMapToList(data);

@@ -5,7 +5,6 @@ import 'package:stalc_alarm/core/network/network_info.dart';
 import 'package:stalc_alarm/models/alert_model.dart';
 import 'package:stalc_alarm/services/alarm_service.dart';
 
-
 abstract class AlarmViewModel {
   Future<Either<Failure, List<AlertModel>>> getCurrentAlarm();
 }
@@ -13,19 +12,25 @@ abstract class AlarmViewModel {
 class AlarmViewModelImpl implements AlarmViewModel {
   final NetworkInfo networkInfo;
   final AlarmService service;
+
   AlarmViewModelImpl({required this.networkInfo, required this.service});
 
   @override
   Future<Either<Failure, List<AlertModel>>> getCurrentAlarm() async {
-    if (await networkInfo.isConnected()) {
-      try {
-        final data = await service.getCurrentAlerts();
-        return Right(data);
-      } on ServerException {
-        return Left(ServerFailure());
-      }
-    } else {
-      return Left(InternetFailure());
+    // NetworkInfo може казати "connected", але інтернету по факту нема — тому catch все одно потрібен
+    try {
+      final connected = await networkInfo.isConnected();
+      if (!connected) return const Left(InternetFailure());
+
+      final data = await service.getCurrentAlerts();
+      return Right(data);
+    } on InternetException {
+      return const Left(InternetFailure());
+    } on ServerException {
+      return const Left(ServerFailure());
+    } catch (_) {
+      // будь-які інші неочікувані помилки
+      return const Left(ServerFailure());
     }
   }
 }

@@ -28,21 +28,24 @@ const topButtonGradient = LinearGradient(
 class AlertDialogWidget extends StatelessWidget {
   final String title;
   final String content;
-  final String acceptButtonText;
-  final String cancelButtonText;
+  final String? acceptButtonText;
+  final String? cancelButtonText;
   final VoidCallback? onAcceptPressed;
   final VoidCallback? onCancelPressed;
   final IconData icon;
-
+  final TextStyle? contentTextStyle;
+  final bool isNeedAcceptButton;
   const AlertDialogWidget({
     super.key,
     required this.title,
     required this.icon,
+    this.contentTextStyle,
     required this.content,
-    required this.acceptButtonText,
-    required this.cancelButtonText,
-    required this.onAcceptPressed,
-    required this.onCancelPressed,
+    this.isNeedAcceptButton = true,
+    this.acceptButtonText,
+    this.cancelButtonText,
+    this.onAcceptPressed,
+    this.onCancelPressed,
   });
 
   @override
@@ -74,7 +77,7 @@ class AlertDialogWidget extends StatelessWidget {
       builder: (context, c) {
         final w = c.maxWidth;
         final h = c.maxHeight;
-        final dialogW = (w * 0.8).clamp(240.0, 300.0);
+        final dialogW = (w * 0.8).clamp(240.0, 320.0);
         final dialogH = (h * 0.2).clamp(400.0, 540.0);
         return Dialog(
           backgroundColor: Colors.transparent, // щоб був видний градієнт-бордер
@@ -133,47 +136,58 @@ class AlertDialogWidget extends StatelessWidget {
                   content: Text(
                     content,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color.fromARGB(200, 248, 137, 41),
-                    ),
+                    style: contentTextStyle,
                   ),
                   actionsAlignment: MainAxisAlignment.center,
                   actions: <Widget>[
-                    GradientBorderButton(
-                      topGradient: topButtonGradient,
-                      bottomGradient: bottomButtonGradient,
-                      radius: 30,
-                      strokeWidth: 1,
-                      onTap: onAcceptPressed,
-                      child: SizedBox(
-                        height: 40,
-                        width: 80,
-                        child: Center(
-                          child: Text(
-                            acceptButtonText,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 15, color: accent),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GradientBorderButton(
+                            topGradient: topButtonGradient,
+                            bottomGradient: bottomButtonGradient,
+                            radius: 30,
+                            strokeWidth: 1,
+                            onTap: onAcceptPressed,
+                            child: SizedBox(
+                              height: 40,
+                              width: 95,
+                              child: Center(
+                                child: Text(
+                                  acceptButtonText!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 15, color: accent),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 10,),
-                    GradientBorderButton(
-                      topGradient: topButtonGradient,
-                      bottomGradient: bottomButtonGradient,
-                      radius: 30,
-                      strokeWidth: 1,
-                      onTap: onCancelPressed,
-                      child: SizedBox(
-                        width: 80,
-                        height: 40,
-                        child: Center(
-                          child: Text(
-                            cancelButtonText,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 15, color: accent),
-                          ),
-                        ),
+                          isNeedAcceptButton ? SizedBox(width: 10) : SizedBox(),
+                          isNeedAcceptButton
+                              ? GradientBorderButton(
+                                  topGradient: topButtonGradient,
+                                  bottomGradient: bottomButtonGradient,
+                                  radius: 30,
+                                  strokeWidth: 1,
+                                  onTap: onCancelPressed,
+                                  child: SizedBox(
+                                    width: 95,
+                                    height: 40,
+                                    child: Center(
+                                      child: Text(
+                                        cancelButtonText!,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          color: accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : SizedBox(),
+                        ],
                       ),
                     ),
                     // TextButton(

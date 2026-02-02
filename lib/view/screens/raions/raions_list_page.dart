@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
+import '../../../core/nav/selection_notifier.dart';
 import '../../../core/ua_hromadas_dart_files/agregator/agregator.dart';
+import '../../../router/router_args_models/region_info_args_model.dart';
 import '../../bloc/alarm_bloc/alarm_bloc.dart';
 import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
 import '../raions/oblasts_page.dart';
@@ -63,10 +65,16 @@ class _RaionsListPageState extends State<RaionsListPage> {
   final _storage = SavedAdminUnitsStorage();
   List<SavedAdminUnit> _listOfUnits = [];
   bool _loadingLocal = true;
-
+  //late final VoidCallback _selectionListener;
   @override
   void initState() {
     super.initState();
+
+    // _selectionListener = () {
+    //   // можна без setState тут, бо loadLocalData робить setState
+    //   loadLocalData();
+    // };
+    // selectionVersion.addListener(_selectionListener);
     loadLocalData();
   }
 
@@ -77,6 +85,10 @@ class _RaionsListPageState extends State<RaionsListPage> {
       _listOfUnits = data;
       _loadingLocal = false;
     });
+  }
+
+  void _onSelectionChanged() {
+    loadLocalData();
   }
 
   /// "raion_150" -> "150"
@@ -179,9 +191,12 @@ class _RaionsListPageState extends State<RaionsListPage> {
         actions: [
           IconButton(
             onPressed: () async {
-              await Navigator.of(
+              final changed = await Navigator.of(
                 context,
-              ).push(CupertinoPageRoute(builder: (_) => const OblastsPage()));
+              ).pushNamed('/oblastsScreen');
+              if (changed == true) {
+                await loadLocalData();
+              }
             },
             icon: const Icon(
               Icons.add,
@@ -272,14 +287,12 @@ class _RaionsListPageState extends State<RaionsListPage> {
                           ),
                         ),
                         onTap: () async {
-                          await Navigator.of(
+                          final changed = await Navigator.of(
                             context,
-                            rootNavigator: false,
-                          ).push(
-                            CupertinoPageRoute(
-                              builder: (_) => const OblastsPage(),
-                            ),
-                          );
+                          ).pushNamed('/oblastsScreen');
+                          if (changed == true) {
+                            await loadLocalData();
+                          }
                         },
                         topGradient: topButtonGradient,
                         bottomGradient: bottomButtonGradient,
@@ -338,20 +351,21 @@ class _RaionsListPageState extends State<RaionsListPage> {
                         leading: Image(
                           image: AssetImage('assets/bullet.png'),
                           color: Color.fromARGB(255, 224, 125, 15),
-                          width: constraints.maxWidth *0.1,
-                          height: constraints.maxHeight * 0.1,
+                          width: constraints.maxWidth * 0.13,
+                          height: constraints.maxHeight * 0.14,
                         ),
                         title: Row(
                           children: [
                             Expanded(
                               child: Text(
                                 _titleOfUnit(unit),
-                                style: const TextStyle(
+                                style: const TextStyle(   
                                   color: Color.fromARGB(255, 248, 137, 41),
-                                  fontSize: 15,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
+                            SizedBox(width: 10,),
                             const Icon(
                               Icons.arrow_forward,
                               color: Color.fromARGB(255, 154, 83, 21),
@@ -360,10 +374,9 @@ class _RaionsListPageState extends State<RaionsListPage> {
                         ),
                         subtitle: Row(
                           children: [
+                            SizedBox(height: constraints.maxHeight * 0.05),
                             Text(
-                              active
-                                  ? "Викид триває"
-                                  : "Немає викиду",
+                              active ? "Викид триває" : "Немає викиду",
                               style: TextStyle(
                                 color: active
                                     ? const Color.fromARGB(255, 255, 120, 80)
@@ -384,15 +397,18 @@ class _RaionsListPageState extends State<RaionsListPage> {
                             ),
                           ],
                         ),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            CupertinoPageRoute(
-                              builder: (_) => RaionsInfoPage(
-                                unit: unit,
-                                isActiveAlarm: active,
-                              ),
+                        onTap: () async {
+                          final changed = await Navigator.of(context).pushNamed(
+                            '/regionInfoScreen',
+                            arguments: RegionInfoArgs(
+                              unit: unit,
+                              isActiveAlarm: active,
                             ),
                           );
+
+                          if (changed == true) {
+                            await loadLocalData(); // ✅ перечитати storage і оновити список
+                          }
                         },
                       );
                     },
@@ -404,5 +420,12 @@ class _RaionsListPageState extends State<RaionsListPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    // selectionVersion.removeListener(_selectionListener);
+    super.dispose();
   }
 }

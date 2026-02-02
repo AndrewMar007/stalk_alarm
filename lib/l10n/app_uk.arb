@@ -1,0 +1,14 @@
+{
+  "@@locale": "uk",
+  "appTitle": "Stalc Alarm",
+  "settings": "Налаштування",
+  "language": "Мова",
+  "ongoing": "триває",
+  "alarm": "Тривоги",
+  "map": "Мапа",
+  "useful": "Корисне",
+  "regions": "Регіони",
+  "selectOblast": "Область",
+  "selectRaion": "Район",
+  "selectHromada": "Громади"
+}

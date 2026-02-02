@@ -11,15 +11,15 @@
 class Oblast {
   final String? uid; // умовний ID
   final String? title;
-
-  const Oblast({required this.uid, required this.title});
+  final String? titleEng;
+  const Oblast({required this.uid, required this.title, required this.titleEng});
 }
 
 class Raion {
   final String? uid;
   final String? oblastUid;
   final String? title;
-
+  
   const Raion({
     required this.uid,
     required this.oblastUid,

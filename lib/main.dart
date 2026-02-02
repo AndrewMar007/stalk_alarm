@@ -294,9 +294,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
-      // initialRoute: '/',
-      // onGenerateRoute: RouteGenerator.generateRoute,
-      home: const CupertinoBottomBar(),
+      initialRoute: '/',
+      onGenerateRoute: RouteGenerator.generateRoute,
+      //home: const CupertinoBottomBar(),
     );
   }
 }

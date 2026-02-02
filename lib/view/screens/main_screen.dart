@@ -9,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:stalc_alarm/core/values/lists.dart';
 import 'package:stalc_alarm/view/screens/oblast_details_page.dart';
+import 'package:stalc_alarm/view/widgets/alarm_widget.dart';
 import 'package:stalc_alarm/view/widgets/radiation_loader.dart';
 import 'package:stalc_alarm/view/widgets/radiation_loader_text.dart';
 
@@ -21,7 +22,12 @@ import 'package:stalc_alarm/view/widgets/gradient_container.dart';
 import 'package:stalc_alarm/view/widgets/gradient_horizontal_divider.dart';
 import 'package:stalc_alarm/view/widgets/gradient_vertical_divider.dart';
 
+import '../../core/exceptions/failures.dart';
 import '../../models/alert_model.dart';
+import '../bloc/alarm_bloc/alarm_bloc_event.dart';
+
+import 'package:stalc_alarm/core/network/internet_guard.dart';
+import 'package:stalc_alarm/injection_container.dart' as di;
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -77,7 +83,7 @@ const verticalGradient = LinearGradient(
 
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
-  String? error;
+  Failure? _failure; // ✅ тримаємо failure як об’єкт, не як string
 
   Timer? _timer;
   late final Stream<double> s1;
@@ -97,8 +103,130 @@ class _MainScreenState extends State<MainScreen> {
   final Map<int, Path> _idToPath = {};
 
   // ✅ Дуже важливо для продуктивності:
-  // спочатку фільтруємо по bounds (Rect), і лише потім робимо дорогий Path.contains()
   final Map<int, Rect> _idToBounds = {};
+
+  // ===== Internet handling (через InternetGuard) =====
+  late final InternetGuard _net;
+
+  bool _hasInternet = true;
+  bool _dialogOpen = false;
+
+  // ✅ показуємо loader під час відновлення/перезавантаження
+  bool _isRestoring = false;
+
+  // ✅ Watchdog щоб лоадер не зависав
+  Timer? _restoreWatchdog;
+
+  // ✅ Статус всередині AlertDialog (щоб оновлювався без закриття)
+  final ValueNotifier<bool> _dialogConnected = ValueNotifier<bool>(false);
+
+  // ✅ діалог саме для “тапу” (коли натиснув на область без інтернету)
+  bool _tapDialogOpen = false;
+
+  void _startRestoreWatchdog() {
+    _restoreWatchdog?.cancel();
+    _restoreWatchdog = Timer(const Duration(seconds: 7), () {
+      if (!mounted) return;
+      setState(() => _isRestoring = false);
+    });
+  }
+
+  Future<void> _applyCurrentBlocStateIfAny() async {
+    if (!mounted) return;
+
+    final st = context.read<AlarmBloc>().state;
+
+    if (st is LoadedState) {
+      await _updateSvgFromAlerts(st.alarmList);
+      if (!mounted) return;
+      _restoreWatchdog?.cancel();
+      setState(() => _isRestoring = false);
+    } else if (st is ErrorState) {
+      _restoreWatchdog?.cancel();
+      setState(() {
+        _failure = st.failure;
+        _isRestoring = false;
+      });
+    }
+  }
+
+  void _triggerRefreshAndPolling() {
+    if (!mounted) return;
+
+    setState(() {
+      _isRestoring = true;
+      _failure = null;
+    });
+
+    _startRestoreWatchdog();
+
+    context.read<AlarmBloc>().add(StartAlarmPollingEvent(intervalMs: 15000));
+    context.read<AlarmBloc>().add(SoftRefreshAlarmEvent());
+
+    Future.microtask(() => _applyCurrentBlocStateIfAny());
+  }
+
+  void _showNoInternetDialog() {
+    _dialogOpen = true;
+    _dialogConnected.value = _hasInternet;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (ctx) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: _dialogConnected,
+          builder: (context, ok, _) {
+            final contentText = ok
+                ? 'Підключено\nВи можете закрити це вікно.'
+                : 'Немає інтернет зʼєднання,\nперевірте налаштування.';
+            return AlertDialogWidget(
+              title: 'Немає з’єднання',
+              isNeedAcceptButton: false,
+              icon: ok ? Icons.wifi : Icons.wifi_off,
+              content: contentText,
+              contentTextStyle: TextStyle(
+                color: ok ? Colors.green : const Color.fromARGB(200, 248, 137, 41),
+              ),
+              acceptButtonText: 'Закрити',
+              onAcceptPressed: () {
+                Navigator.of(ctx, rootNavigator: true).pop();
+                _dialogOpen = false;
+              },
+            );
+          },
+        );
+      },
+    ).then((_) {
+      _dialogOpen = false;
+    });
+  }
+
+  Future<void> _showTapNoInternetDialog() async {
+    if (_tapDialogOpen) return;
+    _tapDialogOpen = true;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialogWidget(
+          title: 'Немає з’єднання',
+          isNeedAcceptButton: false,
+          icon: Icons.wifi_off,
+          content: 'Немає інтернет зʼєднання,\nперевірте налаштування.',
+          contentTextStyle: const TextStyle(
+            color: Color.fromARGB(200, 248, 137, 41),
+          ),
+          acceptButtonText: 'Закрити',
+          onAcceptPressed: () => Navigator.of(ctx).pop(),
+        );
+      },
+    );
+
+    _tapDialogOpen = false;
+  }
 
   /* ===================== Alerts -> SVG ===================== */
 
@@ -121,13 +249,12 @@ class _MainScreenState extends State<MainScreen> {
       strokeWidth: 6,
     );
 
-    // Парсимо viewBox і path-и для hit-test (робимо один раз на оновлення SVG)
     _parseSvgForHitTest(v);
 
     if (!mounted) return;
     setState(() {
       svgData = v;
-      error = null;
+      _failure = null;
     });
   }
 
@@ -157,7 +284,6 @@ class _MainScreenState extends State<MainScreen> {
         }
       }
 
-      // Беремо ВСІ path з id (числові)
       for (final p in doc.findAllElements('path')) {
         final idRaw = p.getAttribute('id');
         final d = p.getAttribute('d');
@@ -168,13 +294,10 @@ class _MainScreenState extends State<MainScreen> {
 
         Path path = parseSvgPathData(d);
 
-        // Якщо є transform на самому path — застосуємо
         final t = p.getAttribute('transform');
         if (t != null && t.trim().isNotEmpty) {
           final m = _parseSvgTransformToMatrix4(t.trim());
-          if (m != null) {
-            path = path.transform(m.storage);
-          }
+          if (m != null) path = path.transform(m.storage);
         }
 
         _idToPath[id] = path;
@@ -190,7 +313,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // Мінімальна підтримка transform="matrix(a b c d e f)" / translate(x,y) / scale(sx,sy)
   Matrix4? _parseSvgTransformToMatrix4(String t) {
     final m1 = RegExp(
       r'matrix\(\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*\)',
@@ -204,7 +326,6 @@ class _MainScreenState extends State<MainScreen> {
       final e = double.tryParse(mm.group(5)!) ?? 0;
       final f = double.tryParse(mm.group(6)!) ?? 0;
 
-      // SVG matrix: [a c e; b d f; 0 0 1]
       return Matrix4(a, b, 0, 0, c, d, 0, 0, 0, 0, 1, 0, e, f, 0, 1);
     }
 
@@ -245,10 +366,50 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+
+    // ✅ Беремо один singleton InternetGuard з DI
+    _net = di.sl<InternetGuard>();
+
+    // ✅ Вішамо listener (а не створюємо guard тут)
+    _net.addListener(_onInternetChanged);
+
+    // стартова перевірка
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final ok = await _net.checkNow();
+      if (!mounted) return;
+
+      setState(() => _hasInternet = ok);
+
+      if (!ok && !_dialogOpen) {
+        _dialogConnected.value = false;
+        _showNoInternetDialog();
+      } else {
+        _triggerRefreshAndPolling();
+      }
+    });
+
     s1 = rangedRandomStream(min: 0.0, max: 1.0);
     s2 = rangedRandomStream(min: 150.0, max: 450.0);
     _updateTime();
     _scheduleNextTick();
+  }
+
+  void _onInternetChanged(bool ok) {
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() => _hasInternet = false);
+      if (_dialogOpen) _dialogConnected.value = false;
+
+      context.read<AlarmBloc>().add(StopAlarmPollingEvent());
+      if (!_dialogOpen) _showNoInternetDialog();
+      return;
+    }
+
+    setState(() => _hasInternet = true);
+    if (_dialogOpen) _dialogConnected.value = true;
+
+    _triggerRefreshAndPolling();
   }
 
   void _scheduleNextTick() {
@@ -265,135 +426,36 @@ class _MainScreenState extends State<MainScreen> {
     setState(() => _time = DateFormat('HH:mm').format(DateTime.now()));
   }
 
-  /* ===================== BottomSheet / title ===================== */
+  /* ===================== Navigation ===================== */
 
   String _oblastTitleById(int id) {
     final uid = "oblast_$id";
-    final found = ListsOfAdministrativeUnits.oblasts
-        .where((o) => o.uid == uid)
-        .toList();
+    final found = ListsOfAdministrativeUnits.oblasts.where((o) => o.uid == uid).toList();
     if (found.isNotEmpty) return found.first.title!;
     return "Невідомо ($uid)";
   }
 
-  void _showRaionBottomSheet(int id) {
-    // final title = _oblastTitleById(id);
+  Future<void> _openOblastDetailsGuarded(int id) async {
+    final ok = await _net.checkNow();
+    if (!mounted) return;
+
+    if (!ok) {
+      await _showTapNoInternetDialog();
+      return;
+    }
 
     final title = _oblastTitleById(id);
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OblastDetailsPage(id: id, title: title),
       ),
     );
-    // showModalBottomSheet(
-    //   context: context,
-    //   isScrollControlled: true, // ✅ дозволяє 100% висоти
-    //   useSafeArea: true,
-    //   enableDrag: false,
-    //   isDismissible: false,
-    //   backgroundColor: Colors.transparent,
-    //   builder: (sheetContext) {
-    //     final height = MediaQuery.of(sheetContext).size.height;
-    //     return SizedBox(
-    //       height: height, // ✅ ПОВНИЙ ЕКРАН
-    //       child: Container(
-    //         decoration: const BoxDecoration(
-    //           color: Color.fromARGB(255, 20, 11, 2),
-    //         ),
-    //         child: Column(
-    //           children: [
-    //             // ===== Верхня панель =====
-    //             Container(
-    //               height: 56,
-    //               padding: const EdgeInsets.symmetric(horizontal: 12),
-    //               decoration: const BoxDecoration(
-    //                 border: Border(
-    //                   bottom: BorderSide(
-    //                     color: Color.fromARGB(80, 247, 135, 50),
-    //                     width: 1,
-    //                   ),
-    //                 ),
-    //               ),
-    //               child: Row(
-    //                 children: [
-    //                   Expanded(
-    //                     child: Text(
-    //                       title,
-    //                       style: const TextStyle(
-    //                         color: Color.fromARGB(255, 247, 135, 50),
-    //                         fontSize: 18,
-    //                         fontWeight: FontWeight.bold,
-    //                       ),
-    //                       overflow: TextOverflow.ellipsis,
-    //                     ),
-    //                   ),
-    //                   IconButton(
-    //                     icon: const Icon(Icons.close),
-    //                     color: const Color.fromARGB(255, 247, 135, 50),
-    //                     onPressed: () {
-    //                       Navigator.of(sheetContext).pop();
-    //                     },
-    //                   ),
-    //                 ],
-    //               ),
-    //             ),
-
-    //             // ===== Контент =====
-    //             Expanded(
-    //               child: Padding(
-    //                 padding: const EdgeInsets.all(20),
-    //                 child: Column(
-    //                   crossAxisAlignment: CrossAxisAlignment.start,
-    //                   children: [
-    //                     Text(
-    //                       'Ідентифікатор',
-    //                       style: TextStyle(
-    //                         color: Colors.grey.shade400,
-    //                         fontSize: 12,
-    //                       ),
-    //                     ),
-    //                     const SizedBox(height: 4),
-    //                     Text(
-    //                       'ID: $id\nuid: oblast_$id',
-    //                       style: const TextStyle(
-    //                         color: Color.fromARGB(255, 206, 113, 42),
-    //                         fontSize: 14,
-    //                       ),
-    //                     ),
-
-    //                     const SizedBox(height: 24),
-
-    //                     // 👉 тут можеш далі додавати будь-який UI:
-    //                     // статус тривоги, графіки, кнопки, списки тощо
-    //                     Expanded(
-    //                       child: Center(
-    //                         child: Text(
-    //                           'Контент області',
-    //                           style: TextStyle(
-    //                             color: Colors.grey.shade500,
-    //                             fontSize: 14,
-    //                           ),
-    //                         ),
-    //                       ),
-    //                     ),
-    //                   ],
-    //                 ),
-    //               ),
-    //             ),
-    //           ],
-    //         ),
-    //       ),
-    //     );
-    //   },
-    // );
   }
 
   /* ===================== Tap handling ===================== */
 
-  // Конвертація точки з "видимої картинки" (BoxFit.contain) у координати SVG viewBox
   Offset? _widgetPointToSvgPoint({
-    required Offset pWidget, // точка в координатах child (після toScene)
+    required Offset pWidget,
     required Size widgetSize,
     required Rect viewBox,
   }) {
@@ -417,7 +479,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   int? _hitTestId({required Offset svgPoint}) {
-    // ✅ Спочатку швидкий bounds-test, потім дорогий Path.contains
     for (final entry in _idToBounds.entries) {
       final id = entry.key;
       final bounds = entry.value;
@@ -427,6 +488,127 @@ class _MainScreenState extends State<MainScreen> {
       if (path != null && path.contains(svgPoint)) return id;
     }
     return null;
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      key: ValueKey('loading'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          RadiationLoader(color: Color.fromARGB(255, 247, 135, 50)),
+          RadiationLoaderText(
+            text: "Завантаження даних",
+            style: TextStyle(color: Color.fromARGB(255, 186, 102, 38)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoInternet() {
+    return const Center(
+      key: ValueKey('no_internet'),
+      child: Text(
+        'Немає з’єднання',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Color.fromARGB(255, 186, 102, 38),
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServerDown() {
+    return const Center(
+      key: ValueKey('server_down'),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 90,
+              color: Color.fromARGB(255, 247, 135, 50),
+            ),
+            SizedBox(height: 18),
+            Text(
+              'Сервер недоступний.\nСпробуйте пізніше.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color.fromARGB(255, 247, 135, 50),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMap(Size mapSize) {
+    return LayoutBuilder(
+      key: const ValueKey('map'),
+      builder: (context, mapConstraints) {
+        final mapSize = Size(mapConstraints.maxWidth, mapConstraints.maxHeight);
+
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerUp: (e) async {
+            if (_viewBox == null || _idToPath.isEmpty) return;
+
+            final scenePoint = _tc.toScene(e.localPosition);
+
+            final svgPoint = _widgetPointToSvgPoint(
+              pWidget: scenePoint,
+              widgetSize: mapSize,
+              viewBox: _viewBox!,
+            );
+
+            if (svgPoint == null) return;
+
+            final id = _hitTestId(svgPoint: svgPoint);
+            if (id != null) {
+              await _openOblastDetailsGuarded(id); // ✅ guarded navigation
+            }
+          },
+          child: RepaintBoundary(
+            child: InteractiveViewer(
+              transformationController: _tc,
+              constrained: true,
+              clipBehavior: Clip.none,
+              minScale: 1,
+              maxScale: 3.5,
+              child: SizedBox(
+                width: mapSize.width,
+                height: mapSize.height,
+                child: SvgPicture.string(
+                  svgData!,
+                  fit: BoxFit.contain,
+                  allowDrawingOutsideViewBox: false,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCenterContent() {
+    if (!_hasInternet) return _buildNoInternet();
+
+    // ✅ server down
+    if (_failure is ServerFailure) return _buildServerDown();
+
+    if (_isRestoring || svgData == null) return _buildLoading();
+    return _buildMap(const Size(double.infinity, double.infinity));
   }
 
   /* ===================== Build ===================== */
@@ -451,10 +633,17 @@ class _MainScreenState extends State<MainScreen> {
       body: BlocListener<AlarmBloc, AlarmBlocState>(
         listener: (context, state) async {
           if (state is LoadedState) {
+            _restoreWatchdog?.cancel();
             await _updateSvgFromAlerts(state.alarmList);
-          } else if (state is ErrorState) {
             if (!mounted) return;
-            setState(() => error = state.failure.toString());
+            setState(() => _isRestoring = false);
+          } else if (state is ErrorState) {
+            _restoreWatchdog?.cancel();
+            if (!mounted) return;
+            setState(() {
+              _failure = state.failure; // ✅ тримаємо тип
+              _isRestoring = false;
+            });
           }
         },
         child: LayoutBuilder(
@@ -490,38 +679,24 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.49,
                                         child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             const Text(
                                               "Псі-випромінювання",
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
+                                                color: Color.fromARGB(255, 247, 135, 50),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(
-                                              height:
-                                                  constraints.maxHeight * 0.01,
-                                            ),
+                                            SizedBox(height: constraints.maxHeight * 0.01),
                                             StreamBuilder(
                                               stream: s1,
                                               builder: (context, snap) {
                                                 return Text(
                                                   "${(snap.data ?? 0).toStringAsFixed(2)} Од",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(
-                                                      255,
-                                                      247,
-                                                      135,
-                                                      50,
-                                                    ),
+                                                    color: Color.fromARGB(255, 247, 135, 50),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -539,39 +714,25 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.488,
                                         child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             const Text(
                                               "Аномальна частота",
                                               textAlign: TextAlign.center,
                                               maxLines: 2,
                                               style: TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
+                                                color: Color.fromARGB(255, 247, 135, 50),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(
-                                              height:
-                                                  constraints.maxHeight * 0.01,
-                                            ),
+                                            SizedBox(height: constraints.maxHeight * 0.01),
                                             StreamBuilder(
                                               stream: s2,
                                               builder: (context, snap) {
                                                 return Text(
                                                   "${(snap.data ?? 150).toStringAsFixed(0)} кГц",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(
-                                                      255,
-                                                      247,
-                                                      135,
-                                                      50,
-                                                    ),
+                                                    color: Color.fromARGB(255, 247, 135, 50),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -586,29 +747,16 @@ class _MainScreenState extends State<MainScreen> {
                                     height: constraints.maxHeight * 0.06,
                                     width: constraints.maxWidth,
                                     child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        SizedBox(
-                                          height: constraints.maxHeight * 0.005,
-                                        ),
-                                        GradientDivider(
-                                          gradient: dividerGradient,
-                                          thickness: 2,
-                                        ),
-                                        SizedBox(
-                                          height: constraints.maxHeight * 0.01,
-                                        ),
+                                        SizedBox(height: constraints.maxHeight * 0.005),
+                                        GradientDivider(gradient: dividerGradient, thickness: 2),
+                                        SizedBox(height: constraints.maxHeight * 0.01),
                                         FittedBox(
                                           child: Text(
                                             "$formattedDate, $_time",
                                             style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                255,
-                                                247,
-                                                135,
-                                                50,
-                                              ),
+                                              color: Color.fromARGB(255, 247, 135, 50),
                                               fontSize: 16.0,
                                             ),
                                           ),
@@ -654,78 +802,15 @@ class _MainScreenState extends State<MainScreen> {
                     top: 111,
                     bottom: 0,
                     child: Center(
-                      child: svgData == null
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  RadiationLoader(
-                                    color: Color.fromARGB(255, 247, 135, 50),
-                                  ),
-                                  RadiationLoaderText(
-                                    text: "Завантаження даних",
-                                    style: TextStyle(
-                                      color: Color.fromARGB(255, 186, 102, 38),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : LayoutBuilder(
-                              builder: (context, mapConstraints) {
-                                final mapSize = Size(
-                                  mapConstraints.maxWidth,
-                                  mapConstraints.maxHeight,
-                                );
-
-                                // ✅ Listener краще для сумісності з InteractiveViewer жестами
-                                return Listener(
-                                  behavior: HitTestBehavior.opaque,
-                                  onPointerUp: (e) {
-                                    if (_viewBox == null || _idToPath.isEmpty)
-                                      return;
-
-                                    // переводимо точку в "scene" InteractiveViewer (з урахуванням zoom/pan)
-                                    final scenePoint = _tc.toScene(
-                                      e.localPosition,
-                                    );
-
-                                    final svgPoint = _widgetPointToSvgPoint(
-                                      pWidget: scenePoint,
-                                      widgetSize: mapSize,
-                                      viewBox: _viewBox!,
-                                    );
-
-                                    if (svgPoint == null) return;
-
-                                    final id = _hitTestId(svgPoint: svgPoint);
-                                    if (id != null) {
-                                      _showRaionBottomSheet(id);
-                                    }
-                                  },
-                                  child: RepaintBoundary(
-                                    child: InteractiveViewer(
-                                      transformationController: _tc,
-                                      constrained: true,
-                                      // ✅ часто дає плавніше на трансформаціях
-                                      clipBehavior: Clip.none,
-                                      minScale: 1,
-                                      maxScale: 3.5,
-                                      child: SizedBox(
-                                        width: mapSize.width,
-                                        height: mapSize.height,
-                                        child: SvgPicture.string(
-                                          svgData!,
-                                          fit: BoxFit.contain,
-                                          allowDrawingOutsideViewBox: false,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, anim) {
+                          return FadeTransition(opacity: anim, child: child);
+                        },
+                        child: _buildCenterContent(),
+                      ),
                     ),
                   ),
                 ],
@@ -740,6 +825,12 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _restoreWatchdog?.cancel();
+
+    // ✅ НЕ dispose singleton
+    _net.removeListener(_onInternetChanged);
+
+    _dialogConnected.dispose();
     _tc.dispose();
     super.dispose();
   }
@@ -812,7 +903,6 @@ String forceAllLabelGroupsOpaque(String svg) {
 }
 
 String forceStrokesStaticish(String svg) {
-  // === ОБЛАСТІ: подвійний контур ===
   svg = svg.replaceAllMapped(
     RegExp(r'<g([^>]*\bid="g310"\b[^>]*)>', multiLine: true),
     (m) {
@@ -836,7 +926,6 @@ String forceStrokesStaticish(String svg) {
     },
   );
 
-  // === РАЙОНИ: тонкі, темно-сірі ===
   svg = svg.replaceAllMapped(
     RegExp(r'<g([^>]*\bid="a"\b[^>]*)>', multiLine: true),
     (m) {

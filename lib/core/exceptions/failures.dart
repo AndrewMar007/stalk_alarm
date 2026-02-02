@@ -16,3 +16,12 @@ class InternetFailure extends Failure {
   @override
   List<Object?> get props => [];
 }
+
+class RateLimitFailure extends Failure {
+  final int retryAfterSec;
+  const RateLimitFailure(this.retryAfterSec)
+      : super('History rate limit reached');
+
+  @override
+  List<Object?> get props => [retryAfterSec];
+}

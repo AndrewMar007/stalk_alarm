@@ -1,0 +1,14 @@
+{
+  "@@locale": "en",
+  "appTitle": "Stalc Alarm",
+  "settings": "Settings",
+  "language": "Language",
+  "ongoing": "ongoing",
+  "alarm": "Alerts",
+  "map": "Map",
+  "useful": "Useful",
+  "regions": "Regions",
+  "selectOblast": "Region",
+  "selectRaion": "Raion",
+  "selectHromada": "Hromada"
+}

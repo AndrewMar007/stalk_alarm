@@ -30,32 +30,128 @@ class ListsOfAdministrativeUnits {
   // ];
 
   static const List<Oblast> oblasts = [
-    Oblast(uid: "oblast_31", title: "м. Київ"),
-    Oblast(uid: "oblast_4", title: "Вінницька область"),
-    Oblast(uid: "oblast_8", title: "Волинська область"),
-    Oblast(uid: "oblast_9", title: "Дніпропетровська область"),
-    Oblast(uid: "oblast_28", title: "Донецька область"),
-    Oblast(uid: "oblast_10", title: "Житомирська область"),
-    Oblast(uid: "oblast_11", title: "Закарпатська область"),
-    Oblast(uid: "oblast_12", title: "Запорізька область"),
-    Oblast(uid: "oblast_13", title: "Івано-Франківська область"),
-    Oblast(uid: "oblast_14", title: "Київська область"),
-    Oblast(uid: "oblast_15", title: "Кіровоградська область"),
-    Oblast(uid: "oblast_16", title: "Луганська область"),
-    Oblast(uid: "oblast_27", title: "Львівська область"),
-    Oblast(uid: "oblast_17", title: "Миколаївська область"),
-    Oblast(uid: "oblast_18", title: "Одеська область"),
-    Oblast(uid: "oblast_19", title: "Полтавська область"),
-    Oblast(uid: "oblast_5", title: "Рівненська область"),
-    Oblast(uid: "oblast_20", title: "Сумська область"),
-    Oblast(uid: "oblast_21", title: "Тернопільська область"),
-    Oblast(uid: "oblast_22", title: "Харківська область"),
-    Oblast(uid: "oblast_23", title: "Херсонська область"),
-    Oblast(uid: "oblast_3", title: "Хмельницька область"),
-    Oblast(uid: "oblast_24", title: "Черкаська область"),
-    Oblast(uid: "oblast_26", title: "Чернівецька область"),
-    Oblast(uid: "oblast_25", title: "Чернігівська область"),
-    Oblast(uid: "oblast_29", title: "АР Крим")
+    Oblast(uid: "oblast_31", title: "м. Київ", titleEng: "Kyiv"),
+    Oblast(
+      uid: "oblast_4",
+      title: "Вінницька область",
+      titleEng: "Vinnytska region",
+    ),
+    Oblast(
+      uid: "oblast_8",
+      title: "Волинська область",
+      titleEng: "Volynska region",
+    ),
+    Oblast(
+      uid: "oblast_9",
+      title: "Дніпропетровська область",
+      titleEng: "Dnipropetrovska region",
+    ),
+    Oblast(
+      uid: "oblast_28",
+      title: "Донецька область",
+      titleEng: "Donetska region",
+    ),
+    Oblast(
+      uid: "oblast_10",
+      title: "Житомирська область",
+      titleEng: "Zhytomyrska region",
+    ),
+    Oblast(
+      uid: "oblast_11",
+      title: "Закарпатська область",
+      titleEng: "Zakarpatska region",
+    ),
+    Oblast(
+      uid: "oblast_12",
+      title: "Запорізька область",
+      titleEng: "Zaporizka region",
+    ),
+    Oblast(
+      uid: "oblast_13",
+      title: "Івано-Франківська область",
+      titleEng: "Ivano-Frankivska region",
+    ),
+    Oblast(
+      uid: "oblast_14",
+      title: "Київська область",
+      titleEng: "Kyivska region",
+    ),
+    Oblast(
+      uid: "oblast_15",
+      title: "Кіровоградська область",
+      titleEng: "Kirovohradska region",
+    ),
+    Oblast(
+      uid: "oblast_16",
+      title: "Луганська область",
+      titleEng: "Luhanska region",
+    ),
+    Oblast(
+      uid: "oblast_27",
+      title: "Львівська область",
+      titleEng: "Lvivska region",
+    ),
+    Oblast(
+      uid: "oblast_17",
+      title: "Миколаївська область",
+      titleEng: "Mykolaivska region",
+    ),
+    Oblast(
+      uid: "oblast_18",
+      title: "Одеська область",
+      titleEng: "Odeska region",
+    ),
+    Oblast(
+      uid: "oblast_19",
+      title: "Полтавська область",
+      titleEng: "Poltavska region",
+    ),
+    Oblast(
+      uid: "oblast_5",
+      title: "Рівненська область",
+      titleEng: "Rivnenska region",
+    ),
+    Oblast(
+      uid: "oblast_20",
+      title: "Сумська область",
+      titleEng: "Sumska region",
+    ),
+    Oblast(
+      uid: "oblast_21",
+      title: "Тернопільська область",
+      titleEng: "Ternopilska region",
+    ),
+    Oblast(
+      uid: "oblast_22",
+      title: "Харківська область",
+      titleEng: "Kharkivska region",
+    ),
+    Oblast(
+      uid: "oblast_23",
+      title: "Херсонська область",
+      titleEng: "Khersonska region",
+    ),
+    Oblast(
+      uid: "oblast_3",
+      title: "Хмельницька область",
+      titleEng: "Khmelnytska region",
+    ),
+    Oblast(
+      uid: "oblast_24",
+      title: "Черкаська область",
+      titleEng: "Cherkaska region",
+    ),
+    Oblast(
+      uid: "oblast_26",
+      title: "Чернівецька область",
+      titleEng: "Chernivetska region",
+    ),
+    Oblast(
+      uid: "oblast_25",
+      title: "Чернігівська область",
+      titleEng: "Chernihivska region",
+    ),
+    Oblast(uid: "oblast_29", title: "АР Крим", titleEng: ""),
   ];
 
   static const List<Raion> raions = [
@@ -138,31 +234,11 @@ class ListsOfAdministrativeUnits {
     Raion(uid: "raion_39", oblastUid: "oblast_8", title: "Луцький район"),
 
     //!? Дніпропетровська область
-    Raion(
-      uid: "raion_44",
-      oblastUid: "oblast_9",
-      title: "Дніпровський район",
-    ),
-    Raion(
-      uid: "raion_42",
-      oblastUid: "oblast_9",
-      title: "Кам’янський район",
-    ),
-    Raion(
-      uid: "raion_46",
-      oblastUid: "oblast_9",
-      title: "Криворізький район",
-    ),
-    Raion(
-      uid: "raion_47",
-      oblastUid: "oblast_9",
-      title: "Нікопольський район",
-    ),
-    Raion(
-      uid: "raion_43",
-      oblastUid: "oblast_9",
-      title: "Самарівський район",
-    ),
+    Raion(uid: "raion_44", oblastUid: "oblast_9", title: "Дніпровський район"),
+    Raion(uid: "raion_42", oblastUid: "oblast_9", title: "Кам’янський район"),
+    Raion(uid: "raion_46", oblastUid: "oblast_9", title: "Криворізький район"),
+    Raion(uid: "raion_47", oblastUid: "oblast_9", title: "Нікопольський район"),
+    Raion(uid: "raion_43", oblastUid: "oblast_9", title: "Самарівський район"),
     Raion(
       uid: "raion_45",
       oblastUid: "oblast_9",
@@ -175,27 +251,11 @@ class ListsOfAdministrativeUnits {
     ),
 
     //!? Донецька область
-    Raion(
-      uid: "raion_54",
-      oblastUid: "oblast_28",
-      title: "Бахмутський район",
-    ),
-    Raion(
-      uid: "raion_55",
-      oblastUid: "oblast_28",
-      title: "Волноваський район",
-    ),
-    Raion(
-      uid: "raion_51",
-      oblastUid: "oblast_28",
-      title: "Горлівський район",
-    ),
+    Raion(uid: "raion_54", oblastUid: "oblast_28", title: "Бахмутський район"),
+    Raion(uid: "raion_55", oblastUid: "oblast_28", title: "Волноваський район"),
+    Raion(uid: "raion_51", oblastUid: "oblast_28", title: "Горлівський район"),
     Raion(uid: "raion_53", oblastUid: "oblast_04", title: "Донецький район"),
-    Raion(
-      uid: "raion_49",
-      oblastUid: "oblast_28",
-      title: "Кальміуський район",
-    ),
+    Raion(uid: "raion_49", oblastUid: "oblast_28", title: "Кальміуський район"),
     Raion(
       uid: "raion_50",
       oblastUid: "oblast_28",
@@ -206,11 +266,7 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_28",
       title: "Маріупольський район",
     ),
-    Raion(
-      uid: "raion_56",
-      oblastUid: "oblast_28",
-      title: "Покровський район",
-    ),
+    Raion(uid: "raion_56", oblastUid: "oblast_28", title: "Покровський район"),
 
     //!? Житомирська область
     Raion(
@@ -218,16 +274,8 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_10",
       title: "Бердичівський район",
     ),
-    Raion(
-      uid: "raion_59",
-      oblastUid: "oblast_10",
-      title: "Житомирський район",
-    ),
-    Raion(
-      uid: "raion_60",
-      oblastUid: "oblast_10",
-      title: "Звягельський район",
-    ),
+    Raion(uid: "raion_59", oblastUid: "oblast_10", title: "Житомирський район"),
+    Raion(uid: "raion_60", oblastUid: "oblast_10", title: "Звягельський район"),
     Raion(
       uid: "raion_58",
       oblastUid: "oblast_10",
@@ -235,36 +283,16 @@ class ListsOfAdministrativeUnits {
     ),
 
     //!? Закарпатська область
-    Raion(
-      uid: "raion_61",
-      oblastUid: "oblast_11",
-      title: "Берегівський район",
-    ),
-    Raion(
-      uid: "raion_65",
-      oblastUid: "oblast_11",
-      title: "Мукачівський район",
-    ),
+    Raion(uid: "raion_61", oblastUid: "oblast_11", title: "Берегівський район"),
+    Raion(uid: "raion_65", oblastUid: "oblast_11", title: "Мукачівський район"),
     Raion(uid: "raion_63", oblastUid: "oblast_11", title: "Рахівський район"),
     Raion(uid: "raion_64", oblastUid: "oblast_11", title: "Тячівський район"),
-    Raion(
-      uid: "raion_66",
-      oblastUid: "oblast_11",
-      title: "Ужгородський район",
-    ),
+    Raion(uid: "raion_66", oblastUid: "oblast_11", title: "Ужгородський район"),
     Raion(uid: "raion_62", oblastUid: "oblast_11", title: "Хустський район"),
 
     //!? Запорізька область
-    Raion(
-      uid: "raion_147",
-      oblastUid: "oblast_12",
-      title: "Бердянський район",
-    ),
-    Raion(
-      uid: "raion_149",
-      oblastUid: "oblast_12",
-      title: "Запорізький район",
-    ),
+    Raion(uid: "raion_147", oblastUid: "oblast_12", title: "Бердянський район"),
+    Raion(uid: "raion_149", oblastUid: "oblast_12", title: "Запорізький район"),
     Raion(
       uid: "raion_148",
       oblastUid: "oblast_12",
@@ -293,11 +321,7 @@ class ListsOfAdministrativeUnits {
       title: "Івано-Франківський район",
     ),
     Raion(uid: "raion_71", oblastUid: "oblast_13", title: "Калуський район"),
-    Raion(
-      uid: "raion_70",
-      oblastUid: "oblast_13",
-      title: "Коломийський район",
-    ),
+    Raion(uid: "raion_70", oblastUid: "oblast_13", title: "Коломийський район"),
     Raion(uid: "raion_69", oblastUid: "oblast_13", title: "Косівський район"),
     Raion(
       uid: "raion_72",
@@ -336,11 +360,7 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_19",
       title: "Кременчуцький район",
     ),
-    Raion(
-      uid: "raion_109",
-      oblastUid: "oblast_19",
-      title: "Полтавський район",
-    ),
+    Raion(uid: "raion_109", oblastUid: "oblast_19", title: "Полтавський район"),
 
     //!? Сумська область
     Raion(
@@ -411,11 +431,7 @@ class ListsOfAdministrativeUnits {
     //!   oblastUid: "oblast_16",
     //!   title: "Ровеньківський район",
     //! ),
-    Raion(
-      uid: "raion_85",
-      oblastUid: "oblast_16",
-      title: "Сватівський район",
-    ),
+    Raion(uid: "raion_85", oblastUid: "oblast_16", title: "Сватівський район"),
     Raion(
       uid: "raion_86",
       oblastUid: "oblast_16",
@@ -426,43 +442,19 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_16",
       title: "Сіверськодонецький район",
     ),
-    Raion(
-      uid: "raion_87",
-      oblastUid: "oblast_16",
-      title: "Щастинський район",
-    ),
+    Raion(uid: "raion_87", oblastUid: "oblast_16", title: "Щастинський район"),
 
     //!? Львівська область
-    Raion(
-      uid: "raion_91",
-      oblastUid: "oblast_27",
-      title: "Дрогобицький район",
-    ),
-    Raion(
-      uid: "raion_94",
-      oblastUid: "oblast_27",
-      title: "Золочівський район",
-    ),
+    Raion(uid: "raion_91", oblastUid: "oblast_27", title: "Дрогобицький район"),
+    Raion(uid: "raion_94", oblastUid: "oblast_27", title: "Золочівський район"),
     Raion(uid: "raion_90", oblastUid: "oblast_27", title: "Львівський район"),
-    Raion(
-      uid: "raion_88",
-      oblastUid: "oblast_27",
-      title: "Самбірський район",
-    ),
+    Raion(uid: "raion_88", oblastUid: "oblast_27", title: "Самбірський район"),
     Raion(uid: "raion_89", oblastUid: "oblast_27", title: "Стрийський район"),
     Raion(uid: "raion_92", oblastUid: "oblast_27", title: "Шептицький район"),
-    Raion(
-      uid: "raion_93",
-      oblastUid: "oblast_27",
-      title: "Яворівський район",
-    ),
+    Raion(uid: "raion_93", oblastUid: "oblast_27", title: "Яворівський район"),
 
     //! Миколаївська область
-    Raion(
-      uid: "raion_96",
-      oblastUid: "oblast_17",
-      title: "Баштанський район",
-    ),
+    Raion(uid: "raion_96", oblastUid: "oblast_17", title: "Баштанський район"),
     Raion(
       uid: "raion_95",
       oblastUid: "oblast_17",
@@ -496,11 +488,7 @@ class ListsOfAdministrativeUnits {
       title: "Білгород-Дністровський район",
     ),
     Raion(uid: "raion_104", oblastUid: "oblast_18", title: "Одеський район"),
-    Raion(
-      uid: "raion_99",
-      oblastUid: "oblast_18",
-      title: "Подільський район",
-    ),
+    Raion(uid: "raion_99", oblastUid: "oblast_18", title: "Подільський район"),
     Raion(
       uid: "raion_103",
       oblastUid: "oblast_18",
@@ -515,16 +503,8 @@ class ListsOfAdministrativeUnits {
     //!? Рівненська область
     Raion(uid: "raion_110", oblastUid: "oblast_5", title: "Вараський район"),
     Raion(uid: "raion_111", oblastUid: "oblast_5", title: "Дубенський район"),
-    Raion(
-      uid: "raion_112",
-      oblastUid: "oblast_5",
-      title: "Рівненський район",
-    ),
-    Raion(
-      uid: "raion_113",
-      oblastUid: "oblast_5",
-      title: "Сарненський район",
-    ),
+    Raion(uid: "raion_112", oblastUid: "oblast_5", title: "Рівненський район"),
+    Raion(uid: "raion_113", oblastUid: "oblast_5", title: "Сарненський район"),
 
     //!? Чернівецька область
     Raion(uid: "raion_138", oblastUid: "oblast_26", title: "Вижницький район"),
@@ -545,16 +525,8 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_3",
       title: "Кам'янець-Подільський район",
     ),
-    Raion(
-      uid: "raion_134",
-      oblastUid: "oblast_3",
-      title: "Хмельницький район",
-    ),
-    Raion(
-      uid: "raion_136",
-      oblastUid: "oblast_3",
-      title: "Шепетівський район",
-    ),
+    Raion(uid: "raion_134", oblastUid: "oblast_3", title: "Хмельницький район"),
+    Raion(uid: "raion_136", oblastUid: "oblast_3", title: "Шепетівський район"),
 
     //!? Херсонська область
     Raion(
@@ -562,21 +534,9 @@ class ListsOfAdministrativeUnits {
       oblastUid: "oblast_23",
       title: "Бериславський район",
     ),
-    Raion(
-      uid: "raion_133",
-      oblastUid: "oblast_23",
-      title: "Генічеський район",
-    ),
+    Raion(uid: "raion_133", oblastUid: "oblast_23", title: "Генічеський район"),
     Raion(uid: "raion_131", oblastUid: "oblast_23", title: "Каховський район"),
-    Raion(
-      uid: "raion_130",
-      oblastUid: "oblast_23",
-      title: "Скадовський район",
-    ),
-    Raion(
-      uid: "raion_132",
-      oblastUid: "oblast_23",
-      title: "Херсонський район",
-    ),
+    Raion(uid: "raion_130", oblastUid: "oblast_23", title: "Скадовський район"),
+    Raion(uid: "raion_132", oblastUid: "oblast_23", title: "Херсонський район"),
   ];
 }

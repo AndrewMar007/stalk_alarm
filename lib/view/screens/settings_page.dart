@@ -185,12 +185,12 @@ class _SettingsPageState extends State<SettingsPage>
           }
 
           final headerH = fromH(
-            0.22,
+            0.25,
             min: ui(150, min: 130, max: 210),
             max: ui(240, min: 190, max: 280),
           );
 
-          final padX = fromW(0.04, min: 12, max: 28);
+          final padX = fromW(0.02, min: 12, max: 28);
           final gapXS = ui(8, min: 6, max: 12);
           final gapS = ui(10, min: 8, max: 16);
           final gapM = ui(16, min: 12, max: 22);

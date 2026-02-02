@@ -6,7 +6,14 @@ import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_page.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
+import '../../../core/nav/app_tab_controller.dart';
+import '../../../core/nav/selection_notifier.dart';
+import '../../../core/network/internet_guard.dart';
+import '../../../core/network/tap_internet_guard.dart';
 import '../../../core/values/lists.dart';
+import '../../widgets/empty_search_result.dart';
+
+import 'package:stalc_alarm/injection_container.dart' as di;
 
 class OblastsPage extends StatefulWidget {
   const OblastsPage({super.key});
@@ -40,43 +47,84 @@ const separatedGradient = LinearGradient(
 );
 
 class _OblastsPageState extends State<OblastsPage> {
-  // await FirebaseMessaging.instance
-  //                          .subscribeToTopic('raion_150');
-  //                      debugPrint('✅ subscribed to raion_150');
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+  late final InternetGuard _net;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _net = di.sl<InternetGuard>(); // ✅ беремо з DI
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Oblast> get _allOblastsWithoutLast {
+    final list = ListsOfAdministrativeUnits.oblasts;
+    if (list.isEmpty) return <Oblast>[];
+    // як і раніше: не показуємо останній елемент
+    return list.take(list.length - 1).toList();
+  }
+
+  List<Oblast> get _filteredOblasts {
+    final q = _query.trim().toLowerCase();
+    final all = _allOblastsWithoutLast;
+
+    if (q.isEmpty) return all;
+
+    return all.where((o) {
+      final title = (o.title ?? '').toLowerCase();
+      return title.contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final items = _filteredOblasts;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Color.fromARGB(255, 224, 125, 15)),
-      backgroundColor: const Color.fromARGB(255, 23, 13, 2),
+        iconTheme: const IconThemeData(
+          color: Color.fromARGB(255, 224, 125, 15),
+        ),
+        backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
-        // actions: [  IconButton(
-        //       onPressed: () {
-        //         Navigator.of(context, rootNavigator: false).push(
-        //           CupertinoPageRoute(builder: (_) => const OblastsPage()),
-        //         );
-        //       },
-        //       icon: Icon(Icons.add, color: Color.fromARGB(255, 247, 135, 50)),
-        //     ),],
-        title: Text(
+        title: const Text(
           "Оберіть область",
           style: TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            color: const Color.fromARGB(255, 224, 125, 15),
+            onPressed: () {
+              // ✅ Закриваємо весь "ланцюжок" до RaionsListPage
+              Navigator.of(context).popUntil((route) {
+                return route.isFirst;
+              });
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
-         Positioned(
+          Positioned(
             left: -50,
             right: -50,
             top: -50,
             bottom: -50,
             child: Image(
-              image: AssetImage("assets/back.png"),
+              image: const AssetImage("assets/back.png"),
               color: const Color.fromARGB(32, 41, 41, 41),
             ),
           ),
@@ -86,103 +134,180 @@ class _OblastsPageState extends State<OblastsPage> {
             bottom: -250,
             top: -100,
             child: Image(
-              image: AssetImage("assets/radiation.png"),
+              image: const AssetImage("assets/radiation.png"),
               color: const Color.fromARGB(17, 55, 27, 6),
             ),
           ),
-          // 🔥 ГРАДІЄНТ ПІД APPBAR
-          SizedBox(
-            height: 2, // товщина лінії
-            width: double.infinity,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(gradient: bottomGradient),
-            ),
-          ),
 
-          // КОНТЕНТ
-          LayoutBuilder(
-            builder: (context, constrains) => ListView.separated(
-              itemCount: ListsOfAdministrativeUnits.oblasts.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  tileColor: Color.fromARGB(4, 249, 189, 25),
-          
-                  leading: SizedBox(
-                    height: constrains.maxHeight * 0.06,
-                    child: Image(
-                      image: AssetImage('assets/bullet.png'),
+          // контент + пошук
+          Column(
+            children: [
+              // 🔥 лінія під appbar
+              SizedBox(
+                height: 2,
+                width: double.infinity,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(gradient: bottomGradient),
+                ),
+              ),
+
+              // 🔎 поле пошуку
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _query = v),
+                  style: const TextStyle(
+                    color: Color.fromARGB(255, 248, 137, 41),
+                    fontSize: 15,
+                  ),
+                  cursorColor: const Color.fromARGB(255, 247, 135, 50),
+                  decoration: InputDecoration(
+                    hintText: 'Пошук області...',
+                    hintStyle: const TextStyle(
+                      color: Color.fromARGB(130, 248, 137, 41),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
                       color: Color.fromARGB(255, 224, 125, 15),
                     ),
-                  ),
-                  title: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        ListsOfAdministrativeUnits.oblasts[index].title!,
-                        style: const TextStyle(
-                          color: Color.fromARGB(255, 248, 137, 41),
-                          fontSize: 16,
-                        ),
-                      ),
-                      Spacer(),
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Color.fromARGB(255, 154, 83, 21),
-                      ),
-                    ],
-                  ),
-                  onTap: () async {
-                    // TODO: логіка вибору області
-                    if (ListsOfAdministrativeUnits.oblasts[index].uid ==
-                        "oblast_31") {
-                      await FirebaseMessaging.instance.subscribeToTopic(
-                        ListsOfAdministrativeUnits.oblasts[index].uid!,
-                      );
-                      debugPrint(
-                        '✅ subscribed to ${ListsOfAdministrativeUnits.oblasts[index].uid}',
-                      );
-                      // Map<String, dynamic> data = {"": RaionsAgregator.getHromadasByRaionUid(widget.raionUid)[index]};
-                      SavedAdminUnitsStorage().add(
-                        Oblast(
-                          uid: ListsOfAdministrativeUnits.oblasts[index].uid,
-                          title:
-                              ListsOfAdministrativeUnits.oblasts[index].title,
-                        ),
-                        Raion(uid: null, oblastUid: null, title: null),
-                        Hromada(uid: null, raionUid: null, title: null),
-                      );
-                      // TODO: логіка вибору області
-                      Navigator.of(context).pushAndRemoveUntil(
-                        CupertinoPageRoute(
-                          builder: (_) => const RaionsListPage(),
-                        ),
-                        (route) => false, // ❌ очищає ВСЕ
-                      );
-                      // print(
-                      //   'Обрано: ${RaionsAgregator.getHromadasByRaionUid(widget.raion.uid)[index].title}',
-                      // );
-                    } else {
-                      Navigator.of(context, rootNavigator: false).push(
-                        CupertinoPageRoute(
-                          builder: (_) => RaionsPage(
-                            oblast: ListsOfAdministrativeUnits.oblasts[index],
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color.fromARGB(255, 224, 125, 15),
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                  },
-                );
-              },
-              separatorBuilder: (context, index) {
-                return Container(
-                  height: 2, // товщина divider
-                  //margin: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: const BoxDecoration(
-                    gradient: separatedGradient,
+                    filled: true,
+                    fillColor: const Color.fromARGB(10, 249, 189, 25),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color.fromARGB(60, 224, 125, 15),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color.fromARGB(140, 224, 125, 15),
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+
+              // список
+              Expanded(
+                child: items.isEmpty && _query.isNotEmpty
+                    ? const EmptySearchResult()
+                    : LayoutBuilder(
+                        builder: (context, constrains) => ListView.separated(
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final oblast = items[index];
+
+                            return ListTile(
+                              tileColor: const Color.fromARGB(4, 249, 189, 25),
+                              leading: SizedBox(
+                                height: constrains.maxHeight * 0.06,
+                                child: Image(
+                                  image: const AssetImage('assets/bullet.png'),
+                                  color: const Color.fromARGB(
+                                    255,
+                                    224,
+                                    125,
+                                    15,
+                                  ),
+                                ),
+                              ),
+                              title: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      oblast.title ?? '',
+                                      style: const TextStyle(
+                                        color: Color.fromARGB(
+                                          255,
+                                          248,
+                                          137,
+                                          41,
+                                        ),
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward,
+                                    color: Color.fromARGB(255, 154, 83, 21),
+                                  ),
+                                ],
+                              ),
+                              onTap: () async {
+                                if (oblast.uid == "oblast_31") {
+                                  await runIfOnline(
+                                    context,
+                                    net: _net,
+                                    action: () async {
+                                      await FirebaseMessaging.instance
+                                          .subscribeToTopic(oblast.uid!);
+                                      debugPrint(
+                                        '✅ subscribed to ${oblast.uid}',
+                                      );
+
+                                      await SavedAdminUnitsStorage().add(
+                                        Oblast(
+                                          uid: oblast.uid,
+                                          title: oblast.title,
+                                          titleEng: oblast.titleEng
+                                        ),
+                                        Raion(
+                                          uid: null,
+                                          oblastUid: null,
+                                          title: null,
+                                        ),
+                                        Hromada(
+                                          uid: null,
+                                          raionUid: null,
+                                          title: null,
+                                        ),
+                                      );
+
+                                      if (!mounted) return;
+                                      Navigator.of(context).pop(true);
+                                    },
+                                  );
+                                } else {
+                                  final changed = await Navigator.of(context)
+                                      .pushNamed(
+                                        '/raionsScreen',
+                                        arguments: oblast,
+                                      );
+
+                                  if (changed == true && mounted) {
+                                    Navigator.of(context).pop(true);
+                                  }
+                                }
+                              },
+                            );
+                          },
+                          separatorBuilder: (context, index) {
+                            return Container(
+                              height: 2,
+                              decoration: const BoxDecoration(
+                                gradient: separatedGradient,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
           ),
         ],
       ),

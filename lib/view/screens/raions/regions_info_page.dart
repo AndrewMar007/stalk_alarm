@@ -5,6 +5,8 @@ import 'package:stalc_alarm/core/local_storage/raions_storage.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/widgets/alarm_widget.dart';
 
+import '../../../core/nav/app_tab_controller.dart';
+import '../../../core/nav/selection_notifier.dart';
 import '../../../core/values/lists.dart';
 import '../../../models/admin_units.dart';
 
@@ -64,14 +66,18 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
         actions: [
           IconButton(
             onPressed: () async {
+              final pageContext = context; // ✅ контекст сторінки
               showDialog(
-                context: context,
+                context: pageContext,
                 useRootNavigator: false,
-                builder: (context) => AlertDialogWidget(
+                builder: (dialogContext) => AlertDialogWidget(
                   icon: Icons.location_off_rounded,
                   title: "Видалення регіону",
                   content: "Ви точно впевнені, що хочете видалити регіон?",
                   acceptButtonText: "Так",
+                  contentTextStyle: TextStyle(
+                    color: Color.fromARGB(200, 248, 137, 41),
+                  ),
                   cancelButtonText: "Ні",
                   onAcceptPressed: () async {
                     if (widget.unit.raionUid != null) {
@@ -87,16 +93,13 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                       debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
                       await storage.remove(widget.unit);
                     } else if (widget.unit.hromadaUid != null) {
-                      debugPrint('❌ unsubscribed to ${widget.unit.oblastUid}');
+                      debugPrint('❌ unsubscribed to ${widget.unit.hromadaUid}');
                       await storage.remove(widget.unit);
                     }
-                    Navigator.pop(context); // закрив діалог
-                    Navigator.of(context).pushAndRemoveUntil(
-                      CupertinoPageRoute(
-                        builder: (_) => const RaionsListPage(),
-                      ),
-                      (route) => false, // ❌ очищає ВСЕ
-                    );
+                    Navigator.of(dialogContext).pop(); // ✅ закрили діалог
+                    Navigator.of(
+                      pageContext,
+                    ).pop(true); // ✅ закрили сторінку і повернули "true"
                   },
                   onCancelPressed: () {
                     Navigator.of(context).pop();

@@ -9,6 +9,9 @@ import 'package:stalc_alarm/use_cases/get_current_alarm.dart';
 import 'package:stalc_alarm/view_model/alarm_history_view_model.dart';
 import 'package:stalc_alarm/view_model/alarm_view_model.dart';
 
+import 'core/network/internet_guard.dart';
+import 'device_id_provider.dart';
+
 final sl = GetIt.instance;
 Future<void> init() async {
   //! Use Cases
@@ -30,12 +33,30 @@ Future<void> init() async {
   );
 
   //! Dio settings
-  sl.registerLazySingleton(
-    () => Dio(
+  sl.registerLazySingleton<Dio>(() {
+    final dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.baseUrl,
         headers: {"X-Client-Key": ApiConfig.clientKey},
       ),
-    ),
-  );
+    );
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final deviceId = await DeviceIdProvider.get();
+          options.headers['X-Device-Id'] = deviceId;
+          handler.next(options);
+        },
+      ),
+    );
+
+    return dio;
+  });
+  //! Internet Guard (singleton)
+  sl.registerLazySingleton<InternetGuard>(() {
+    final g = InternetGuard();
+    g.start(); // ✅ запускаємо один раз на весь додаток
+    return g;
+  });
 }

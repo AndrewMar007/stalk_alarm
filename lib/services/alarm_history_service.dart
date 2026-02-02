@@ -27,15 +27,42 @@ class AlarmHistoryServiceImpl extends AlarmHistoryService {
     required int days,
   }) async {
     try {
-      final response = await client.get("${ApiConfig.alarmsHistory}$oblastId?days=$days");
+           // final response = await client.get('/this-endpoint-does-not-exist');
+      final response = await client.get(
+        "${ApiConfig.alarmsHistory}$oblastId?days=$days",
+      );
       final data = response.data['alerts'];
       return _convertMapToList(data);
     } on DioException catch (e) {
-      if (e.response != null) {
-        throw ServerException();
-      } else {
+      // 1) Нема response -> інтернет/таймаут тощо
+      if (e.response == null) {
         throw InternetException();
       }
+
+      final status = e.response?.statusCode;
+
+      // 2) 429 -> дістаємо retryAfterSec
+      if (status == 429) {
+        int retryAfter = 45; // fallback
+
+        // a) з JSON (твій сервер віддає retryAfterSec)
+        final data = e.response?.data;
+        if (data is Map && data['retryAfterSec'] is num) {
+          retryAfter = (data['retryAfterSec'] as num).toInt();
+        }
+
+        // b) або з header Retry-After
+        final raHeader = e.response?.headers.value('retry-after');
+        final raParsed = int.tryParse(raHeader ?? '');
+        if (raParsed != null && raParsed > 0) {
+          retryAfter = raParsed;
+        }
+
+        throw RateLimitException(retryAfter);
+      }
+
+      // 3) інші відповіді сервера
+      throw ServerException();
     }
   }
 }

@@ -139,7 +139,7 @@ class AlarmSoundService : Service() {
   // ===============================
   private fun startForegroundInternal() {
     val n: Notification = NotificationCompat.Builder(this, CH_ID)
-      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+      .setSmallIcon(R.drawable.ic_radiation)
       .setContentTitle("Stalk Alarm")
       .setContentText("Тривога активна")
       .setOngoing(true)

@@ -154,7 +154,7 @@ packages:
     source: hosted
     version: "1.19.1"
   connectivity_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: connectivity_plus
       sha256: b5e72753cf63becce2c61fd04dfe0f1c430cc5278b53a1342dc5ad839eab29ec
@@ -358,6 +358,11 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.2.0"
+  flutter_localizations:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_map:
     dependency: "direct main"
     description:
@@ -476,10 +481,10 @@ packages:
     dependency: "direct main"
     description:
       name: internet_connection_checker
-      sha256: ee08f13d8b13b978affe226e9274ca3ba7a9bed07c9479e8ae245f785b7a488a
+      sha256: "1c683e63e89c9ac66a40748b1b20889fd9804980da732bf2b58d6d5456c8e876"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.1"
+    version: "1.0.0+1"
   intl:
     dependency: "direct main"
     description:
@@ -934,7 +939,7 @@ packages:
     source: hosted
     version: "0.3.1"
   uuid:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: uuid
       sha256: a11b666489b1954e01d992f3d601b1804a33937b5a8fe677bd26b8a9f96f96e8

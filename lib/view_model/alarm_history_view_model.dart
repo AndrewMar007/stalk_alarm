@@ -28,6 +28,10 @@ class AlarmHistoryViewModelImpl implements AlarmHistoryViewModel {
           days: days,
         );
         return Right(data);
+      } on RateLimitException catch (e) {
+        return Left(RateLimitFailure(e.retryAfterSec));
+      } on InternetException {
+        return Left(InternetFailure());
       } on ServerException {
         return Left(ServerFailure());
       }
