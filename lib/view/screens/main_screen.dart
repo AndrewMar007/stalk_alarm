@@ -84,6 +84,10 @@ const verticalGradient = LinearGradient(
 
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
+
+  /// ✅ кеш “підсвіченої” карти без залежності від мови (щоб миттєво перемикати en/uk)
+  String? _svgHighlightedRaw;
+
   Failure? _failure;
 
   Timer? _timer;
@@ -228,27 +232,44 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _updateSvgFromAlerts(List<AlertModel> alerts) async {
     final ids = alerts.map((e) => e.locationOblastUid).whereType<int>().toSet();
 
+    // ✅ якщо набір ids той самий і вже маємо raw — просто переаплаїмо мову (на випадок зміни локалі)
     if (setEquals(ids, _lastIds) &&
-        svgData != null &&
+        _svgHighlightedRaw != null &&
         _viewBox != null &&
         _idToPath.isNotEmpty) {
+      final localized = _applyLabelsLanguageByIdSuffix(
+        _svgHighlightedRaw!,
+        _langCode,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        svgData = localized;
+        _failure = null;
+      });
       return;
     }
 
     _lastIds = ids;
 
-    final v = await highlightRaionsSvgByIds(
+    final highlighted = await highlightRaionsSvgByIds(
       assetPath: 'assets/maps/ukraine_raions.svg',
       raionIds: ids.toList(),
       fillHex: '#AD1700',
       strokeWidth: 6,
     );
 
-    _parseSvgForHitTest(v);
+    // ✅ кешуємо “підсвічений” svg без прив’язки до мови
+    _svgHighlightedRaw = highlighted;
+
+    // ✅ застосовуємо потрібну мову для підписів
+    final localized = _applyLabelsLanguageByIdSuffix(highlighted, _langCode);
+
+    _parseSvgForHitTest(localized);
 
     if (!mounted) return;
     setState(() {
-      svgData = v;
+      svgData = localized;
       _failure = null;
     });
   }
@@ -619,21 +640,30 @@ class _MainScreenState extends State<MainScreen> {
     final langCode = loc.languageCode;
     final t = AppLocalizations.of(context)!;
 
-    // ✅ Якщо локаль змінилась — оновимо _localeTag/_langCode + час (без чекання хвилини)
+    // ✅ Якщо локаль змінилась — оновимо _localeTag/_langCode + час + SVG підписи (без чекання хвилини)
     if (_localeTag != localeTag || _langCode != langCode) {
       _localeTag = localeTag;
       _langCode = langCode;
 
-      // щоб не викликати setState під час build напряму — мікротаск
       Future.microtask(() {
         if (!mounted) return;
+
         _updateTime();
+
+        // ✅ миттєво перемикаємо підписи на карті, не чіпаючи підсвічування
+        if (_svgHighlightedRaw != null) {
+          final localized =
+              _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
+
+          // hit-test не залежить від підписів, але парсити ок з “поточним” svg
+          _parseSvgForHitTest(localized);
+
+          setState(() => svgData = localized);
+        }
       });
     }
 
     final now = DateTime.now();
-
-    // ✅ Дата локалізована
     final formattedDate = DateFormat.yMMMMd(localeTag).format(now);
 
     return Scaffold(
@@ -642,7 +672,7 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         title: Text(
           t.map,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
           ),
@@ -703,7 +733,7 @@ class _MainScreenState extends State<MainScreen> {
                                             Text(
                                               t.psiRadiation,
                                               textAlign: TextAlign.center,
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: Color.fromARGB(
                                                   255,
                                                   247,
@@ -753,7 +783,7 @@ class _MainScreenState extends State<MainScreen> {
                                               t.abnormalFrequency,
                                               textAlign: TextAlign.center,
                                               maxLines: 2,
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: Color.fromARGB(
                                                   255,
                                                   247,
@@ -891,6 +921,52 @@ class _MainScreenState extends State<MainScreen> {
     _dialogConnected.dispose();
     _tc.dispose();
     super.dispose();
+  }
+
+  /* ===================== SVG language switching ===================== */
+
+  /// ✅ Перемикає видимість груп лейблів по суфіксу id: *_en / *_uk
+  /// Працює з твоїми id типу:
+  /// label_kyiv_city_en, label_kyiv_city_uk, ...
+  String _applyLabelsLanguageByIdSuffix(String svg, String langCode) {
+    try {
+      final doc = XmlDocument.parse(svg);
+
+      for (final g in doc.findAllElements('g')) {
+        final id = g.getAttribute('id');
+        if (id == null) continue;
+
+        bool? shouldShow;
+
+        if (id.endsWith('_en')) {
+          shouldShow = (langCode == 'en');
+        } else if (id.endsWith('_uk')) {
+          shouldShow = (langCode != 'en'); // дефолт для всіх не-en
+        } else {
+          continue;
+        }
+
+        _setSvgDisplayStyle(g, shouldShow);
+      }
+
+      return doc.toXmlString(pretty: false);
+    } catch (_) {
+      // якщо раптом парсинг впав — просто повернемо як є
+      return svg;
+    }
+  }
+
+  void _setSvgDisplayStyle(XmlElement el, bool show) {
+    final oldStyle = el.getAttribute('style') ?? '';
+    final parts = oldStyle
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .where((s) => !s.startsWith('display:'))
+        .toList();
+
+    parts.add('display:${show ? 'inline' : 'none'}');
+    el.setAttribute('style', parts.join(';'));
   }
 }
 

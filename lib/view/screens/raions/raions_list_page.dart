@@ -1,19 +1,13 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/view/widgets/gradient_outline_border_button.dart';
 
 import '../../../core/local_storage/raions_storage.dart';
-import '../../../core/nav/selection_notifier.dart';
 import '../../../core/ua_hromadas_dart_files/agregator/agregator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../router/router_args_models/region_info_args_model.dart';
 import '../../bloc/alarm_bloc/alarm_bloc.dart';
 import '../../bloc/alarm_bloc/alarm_bloc_state.dart';
-import '../raions/oblasts_page.dart';
-import 'regions_info_page.dart';
-
-// ✅ ДОДАЙ СВІЙ АГРЕГАТОР (підправ шлях, якщо інший)
 
 class RaionsListPage extends StatefulWidget {
   const RaionsListPage({super.key});
@@ -66,16 +60,10 @@ class _RaionsListPageState extends State<RaionsListPage> {
   final _storage = SavedAdminUnitsStorage();
   List<SavedAdminUnit> _listOfUnits = [];
   bool _loadingLocal = true;
-  //late final VoidCallback _selectionListener;
+
   @override
   void initState() {
     super.initState();
-
-    // _selectionListener = () {
-    //   // можна без setState тут, бо loadLocalData робить setState
-    //   loadLocalData();
-    // };
-    // selectionVersion.addListener(_selectionListener);
     loadLocalData();
   }
 
@@ -88,9 +76,8 @@ class _RaionsListPageState extends State<RaionsListPage> {
     });
   }
 
-  void _onSelectionChanged() {
-    loadLocalData();
-  }
+  bool _isEnglish(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'en';
 
   /// "raion_150" -> "150"
   String _stripPrefix(String v) {
@@ -113,27 +100,21 @@ class _RaionsListPageState extends State<RaionsListPage> {
     return s;
   }
 
-  /// ✅ ГОЛОВНЕ: якщо в SavedAdminUnit немає raionUid, знайдемо його через RaionsAgregator
+  /// ✅ якщо в SavedAdminUnit немає raionUid, знайдемо його через агрегатор
   String? _resolveRaionUidForHromada(SavedAdminUnit unit) {
-    // 1) якщо вже збережено — повертаємо
     final saved = unit.raionUid?.trim();
     if (saved != null && saved.isNotEmpty) return saved;
 
-    // 2) знайти по hromadaUid у RaionsAgregator.allHromadas
     final hUid = unit.hromadaUid;
     if (hUid == null || hUid.trim().isEmpty) return null;
 
     final rawUid = _stripHromadaPrefix(hUid);
 
-    // allHromadas: List<Hromada(uid: 'UA....', raionUid: 'raion_114', ... )>
     final found = RaionsAgregator.allHromadas.where((h) => h.uid == rawUid);
     if (found.isEmpty) return null;
 
-    return found.first.raionUid; // очікуємо "raion_114"
+    return found.first.raionUid;
   }
-  //! Locale check 
-  bool _isEnglish(BuildContext context) =>
-      Localizations.localeOf(context).languageCode == 'en';
 
   /// ===== Визначення активності =====
   bool _isActiveByUnit(
@@ -147,17 +128,14 @@ class _RaionsListPageState extends State<RaionsListPage> {
     if (hromadaUid != null && hromadaUid.isNotEmpty) {
       final topic = _hromadaTopic(hromadaUid);
 
-      // 1.1) якщо push START вже був отриманий додатком
       if (activeHromadaTopics.contains(topic)) return true;
 
-      // 1.2) fallback: якщо активний район цієї громади
       final raionUid = _resolveRaionUidForHromada(unit);
       if (raionUid != null && raionUid.isNotEmpty) {
         final normalizedRaion = _stripPrefix(raionUid);
         if (activeRaionUids.contains(normalizedRaion)) return true;
       }
 
-      // 1.3) fallback: якщо активна область
       return activeOblastTitles.contains(unit.oblastTitle);
     }
 
@@ -172,19 +150,47 @@ class _RaionsListPageState extends State<RaionsListPage> {
     return activeOblastTitles.contains(unit.oblastTitle);
   }
 
-  String _titleOfUnit(SavedAdminUnit u) {
-    if (u.hromadaTitle != null) return u.hromadaTitle!;
-    if (u.raionTitle != null) return u.raionTitle!;
-    return u.oblastTitle!;
+  /// ✅ title для списку (UA/EN)
+  String _titleOfUnit(BuildContext context, SavedAdminUnit u) {
+    final isEn = _isEnglish(context);
+
+    // якщо вибрана громада — показуємо її
+    if (u.hromadaTitle != null && u.hromadaTitle!.trim().isNotEmpty) {
+      final en = (u.hromadaEngTitle ?? '').trim();
+      final uk = (u.hromadaTitle ?? '').trim();
+      return isEn ? (en.isNotEmpty ? en : uk) : (uk.isNotEmpty ? uk : en);
+    }
+
+    // якщо вибраний район
+    if (u.raionTitle != null && u.raionTitle!.trim().isNotEmpty) {
+      final en = (u.raionEngTitle ?? '').trim();
+      final uk = (u.raionTitle ?? '').trim();
+      return isEn ? (en.isNotEmpty ? en : uk) : (uk.isNotEmpty ? uk : en);
+    }
+
+    // інакше область
+    final en = (u.oblastEngTitle ?? '').trim();
+    final uk = (u.oblastTitle ?? '').trim();
+    return isEn ? (en.isNotEmpty ? en : uk) : (uk.isNotEmpty ? uk : en);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final isEn = _isEnglish(context);
+
+    // Empty state texts
     final regionTitle = isEn ? "Select a region" : "Оберіть регіон";
-    final regionDescription = isEn ? "Select your region\nto receive future notification" : "Оберіть ваш регіон і слідкуйте за\n майбутніми повідомленнями";
+    final regionDescription = isEn
+        ? "Select your region\nto receive future notifications"
+        : "Оберіть ваш регіон і слідкуйте за\nмайбутніми повідомленнями";
     final regionButton = isEn ? "Add region" : "Додати регіон";
+
+    // List item texts
+    final activeText = isEn ? "Emission is active" : "Викид триває";
+    final inactiveText = isEn ? "No emission" : "Немає викиду";
+    final trackingText = isEn ? "Tracking" : "Відстежується";
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 20, 11, 2),
       appBar: AppBar(
@@ -192,7 +198,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
         centerTitle: true,
         title: Text(
           t.regions,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
           ),
@@ -200,9 +206,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
         actions: [
           IconButton(
             onPressed: () async {
-              final changed = await Navigator.of(
-                context,
-              ).pushNamed('/oblastsScreen');
+              final changed = await Navigator.of(context).pushNamed('/oblastsScreen');
               if (changed == true) {
                 await loadLocalData();
               }
@@ -216,17 +220,17 @@ class _RaionsListPageState extends State<RaionsListPage> {
       ),
       body: Stack(
         children: [
-          Positioned(
+          const Positioned(
             left: -50,
             right: -50,
             top: -50,
             bottom: -50,
             child: Image(
               image: AssetImage("assets/back.png"),
-              color: const Color.fromARGB(32, 41, 41, 41),
+              color: Color.fromARGB(32, 41, 41, 41),
             ),
           ),
-          Positioned(
+          const Positioned(
             left: -350,
             right: -350,
             bottom: -250,
@@ -237,7 +241,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
             ),
           ),
           SizedBox(
-            height: 2, // товщина лінії
+            height: 2,
             width: double.infinity,
             child: const DecoratedBox(
               decoration: BoxDecoration(gradient: bottomGradient),
@@ -249,39 +253,34 @@ class _RaionsListPageState extends State<RaionsListPage> {
               if (_loadingLocal) {
                 return const Center(child: CircularProgressIndicator());
               }
+
               if (_listOfUnits.isEmpty) {
-                // return const Center(
-                //   child: Text(
-                //     "Нічого не вибрано",
-                //     style: TextStyle(color: Color.fromARGB(255, 248, 165, 101)),
-                //   ),
-                // );
                 return Center(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.add_location_rounded,
                         color: Color.fromARGB(255, 247, 135, 50),
                         size: 150,
                       ),
                       Text(
                         regionTitle,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Color.fromARGB(255, 247, 135, 50),
                           fontSize: 25.0,
                         ),
                       ),
-                      SizedBox(height: 20.0),
+                      const SizedBox(height: 20.0),
                       Text(
                         regionDescription,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Color.fromARGB(255, 247, 135, 50),
                         ),
                       ),
-                      SizedBox(height: 30),
+                      const SizedBox(height: 30),
                       GradientBorderButton(
                         child: Padding(
                           padding: EdgeInsets.symmetric(
@@ -290,15 +289,13 @@ class _RaionsListPageState extends State<RaionsListPage> {
                           ),
                           child: Text(
                             regionButton,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Color.fromARGB(255, 247, 135, 50),
                             ),
                           ),
                         ),
                         onTap: () async {
-                          final changed = await Navigator.of(
-                            context,
-                          ).pushNamed('/oblastsScreen');
+                          final changed = await Navigator.of(context).pushNamed('/oblastsScreen');
                           if (changed == true) {
                             await loadLocalData();
                           }
@@ -319,22 +316,15 @@ class _RaionsListPageState extends State<RaionsListPage> {
                   final activeHromadaTopics = <String>{};
 
                   if (state is LoadedState) {
-                    // ✅ громади з push
                     activeHromadaTopics.addAll(state.activeHromadas.keys);
 
-                    // ✅ області/райони з API
                     for (final a in state.alarmList) {
                       if (a.finishedAt != null) continue;
-
-                      // ⚠️ якщо ти фільтруєш тільки air_raid — додай тут:
-                      // if (a.alertType != 'air_raid') continue;
 
                       activeOblastTitles.add(a.locationOblast);
 
                       if (a.locationType == 'raion') {
-                        activeRaionUids.add(
-                          _stripPrefix(a.locationUid.toString()),
-                        );
+                        activeRaionUids.add(_stripPrefix(a.locationUid.toString()));
                       }
                     }
                   }
@@ -358,8 +348,8 @@ class _RaionsListPageState extends State<RaionsListPage> {
                       return ListTile(
                         tileColor: const Color.fromARGB(4, 249, 189, 25),
                         leading: Image(
-                          image: AssetImage('assets/bullet.png'),
-                          color: Color.fromARGB(255, 224, 125, 15),
+                          image: const AssetImage('assets/bullet.png'),
+                          color: const Color.fromARGB(255, 224, 125, 15),
                           width: constraints.maxWidth * 0.13,
                           height: constraints.maxHeight * 0.14,
                         ),
@@ -367,14 +357,14 @@ class _RaionsListPageState extends State<RaionsListPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                _titleOfUnit(unit),
+                                _titleOfUnit(context, unit),
                                 style: const TextStyle(
                                   color: Color.fromARGB(255, 248, 137, 41),
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             const Icon(
                               Icons.arrow_forward,
                               color: Color.fromARGB(255, 154, 83, 21),
@@ -385,21 +375,19 @@ class _RaionsListPageState extends State<RaionsListPage> {
                           children: [
                             SizedBox(height: constraints.maxHeight * 0.05),
                             Text(
-                              active ? "Викид триває" : "Немає викиду",
+                              active ? activeText : inactiveText,
                               style: TextStyle(
                                 color: active
                                     ? const Color.fromARGB(255, 255, 120, 80)
                                     : const Color.fromARGB(255, 154, 83, 21),
                                 fontSize: 12,
-                                fontWeight: active
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                               ),
                             ),
                             const Spacer(),
-                            const Text(
-                              "Відстежується",
-                              style: TextStyle(
+                            Text(
+                              trackingText,
+                              style: const TextStyle(
                                 color: Color.fromARGB(255, 154, 83, 21),
                                 fontSize: 12,
                               ),
@@ -416,7 +404,7 @@ class _RaionsListPageState extends State<RaionsListPage> {
                           );
 
                           if (changed == true) {
-                            await loadLocalData(); // ✅ перечитати storage і оновити список
+                            await loadLocalData();
                           }
                         },
                       );
@@ -429,12 +417,5 @@ class _RaionsListPageState extends State<RaionsListPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    // selectionVersion.removeListener(_selectionListener);
-    super.dispose();
   }
 }

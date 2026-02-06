@@ -60,7 +60,6 @@
 //   }
 // }
 
-
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,40 +68,52 @@ import '../../models/admin_units.dart';
 class SavedAdminUnit {
   final String? oblastUid;
   final String? oblastTitle;
+  final String? oblastEngTitle;
+  final String? raionEngTitle;
   final String? raionTitle;
   final String? raionUid;
   final String? hromadaTitle;
   final String? hromadaUid;
+  final String? hromadaEngTitle;
 
   const SavedAdminUnit({
     required this.oblastUid,
     required this.oblastTitle,
+    required this.oblastEngTitle,
     required this.raionTitle,
+    required this.raionEngTitle,
     required this.raionUid,
     required this.hromadaTitle,
     required this.hromadaUid,
+    required this.hromadaEngTitle,
   });
 
   /// Унікальний ключ запису (щоб не було дублів і було легко видаляти)
   String get key => '$oblastUid|$raionUid|$hromadaTitle';
 
   Map<String, dynamic> toJson() => {
-        'oblastUid': oblastUid,
-        'oblastTitle': oblastTitle,
-        'raionTitle': raionTitle,
-        'raionUid': raionUid,
-        'hromadaTitle': hromadaTitle,
-        'hromadaUid': hromadaUid,
-      };
+    'oblastUid': oblastUid,
+    'oblastTitle': oblastTitle,
+    'oblastEngTitle': oblastEngTitle,
+    'raionTitle': raionTitle,
+    'raionUid': raionUid,
+    'raionEngTitle': raionEngTitle,
+    'hromadaTitle': hromadaTitle,
+    'hromadaUid': hromadaUid,
+    'hromadaEngTitle': hromadaEngTitle
+  };
 
   factory SavedAdminUnit.fromJson(Map<String, dynamic> json) {
     return SavedAdminUnit(
-      oblastUid: json['oblastUid'] ,
-      oblastTitle: json['oblastTitle'] ,
-      raionTitle: json['raionTitle'] ,
+      oblastUid: json['oblastUid'],
+      oblastTitle: json['oblastTitle'],
+      oblastEngTitle: json['oblastEngTitle'],
+      raionTitle: json['raionTitle'],
       raionUid: json['raionUid'],
+      raionEngTitle: json['raionEngTitle'],
       hromadaTitle: json['hromadaTitle'],
       hromadaUid: json['hromadaUid'],
+      hromadaEngTitle: json['hromadaEngTitle'],
     );
   }
 }
@@ -117,7 +128,9 @@ class SavedAdminUnitsStorage {
 
     final decoded = jsonDecode(s) as List;
     return decoded
-        .map((e) => SavedAdminUnit.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => SavedAdminUnit.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
@@ -128,7 +141,17 @@ class SavedAdminUnitsStorage {
 
   /// ➕ Додати запис (Tile). Якщо такий вже є — не дублюємо.
   Future<void> add(Oblast oblast, Raion raion, Hromada hromada) async {
-    final unit = SavedAdminUnit(oblastUid: oblast.uid, oblastTitle: oblast.title, raionTitle: raion.title, raionUid: raion.uid, hromadaTitle: hromada.title, hromadaUid: hromada.uid);
+    final unit = SavedAdminUnit(
+      oblastUid: oblast.uid,
+      oblastTitle: oblast.title,
+      oblastEngTitle: oblast.titleEng,
+      raionTitle: raion.title,
+      raionUid: raion.uid,
+      raionEngTitle: raion.titleEng,
+      hromadaTitle: hromada.title,
+      hromadaUid: hromada.uid,
+      hromadaEngTitle: hromada.titleEng,
+    );
     final list = await loadAll();
     final exists = list.any((e) => e.key == unit.key);
     if (!exists) {

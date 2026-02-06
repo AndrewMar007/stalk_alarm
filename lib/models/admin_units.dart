@@ -32,10 +32,12 @@ class Hromada {
   final String? uid;
   final String? raionUid;
   final String? title;
+  final String? titleEng;
 
   const Hromada({
     required this.uid,
     required this.raionUid,
     required this.title,
+    required this.titleEng
   });
 }

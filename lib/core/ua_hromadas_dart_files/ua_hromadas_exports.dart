@@ -8,7 +8,7 @@ export 'zhytomyrska_oblast_hromadas.dart';
 export 'zakarpatska_oblast_hromadas.dart';
 export 'zaporizka_oblast_hromadas.dart';
 export 'ivano_frankivska_oblast_hromadas.dart';
-export 'kyyivska_oblast_hromadas.dart';
+export 'kyivska_oblast_hromadas.dart';
 export 'kirovohradska_oblast_hromadas.dart';
 export 'luhanska_oblast_hromadas.dart';
 export 'lvivska_oblast_hromadas.dart';

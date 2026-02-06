@@ -272,6 +272,7 @@ class _RaionsPageState extends State<RaionsPage> {
                                           uid: null,
                                           raionUid: null,
                                           title: null,
+                                          titleEng: null
                                         ),
                                       );
 

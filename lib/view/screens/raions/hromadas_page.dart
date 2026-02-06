@@ -1,16 +1,12 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
 import 'package:stalc_alarm/core/local_storage/raions_storage.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/agregator/agregator.dart';
-import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/injection_container.dart' as di;
 
-import '../../../core/nav/selection_notifier.dart';
 import '../../../core/network/internet_guard.dart';
 import '../../../core/network/tap_internet_guard.dart';
-import '../../../core/values/lists.dart';
-import '../../../injection_container.dart' as di;
 import '../../../models/admin_units.dart';
 import '../../widgets/empty_search_result.dart';
 
@@ -54,31 +50,8 @@ class _HromadasPageState extends State<HromadasPage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _net = di.sl<InternetGuard>(); // ✅ беремо з DI
-  }
-
-  List<Raion> getRaionsByOblast(String oblastUid) {
-    return ListsOfAdministrativeUnits.raions
-        .where((raion) => raion.oblastUid == oblastUid)
-        .toList();
-  }
-
-  List<Hromada> get _allHromadas {
-    return RaionsAgregator.getHromadasByRaionUid(widget.raion.uid!);
-  }
-
-  List<Hromada> get _filteredHromadas {
-    final all = _allHromadas;
-    final q = _query.trim().toLowerCase();
-
-    if (q.isEmpty) return all;
-
-    return all.where((h) {
-      final title = (h.title ?? '').toLowerCase();
-      return title.contains(q);
-    }).toList();
+    _net = di.sl<InternetGuard>();
   }
 
   @override
@@ -87,13 +60,46 @@ class _HromadasPageState extends State<HromadasPage> {
     super.dispose();
   }
 
+  bool _isEnglish(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'en';
+
+  List<Hromada> get _allHromadas {
+    return RaionsAgregator.getHromadasByRaionUid(widget.raion.uid!);
+  }
+
+  String _displayHromadaTitle(BuildContext context, Hromada h) {
+    final en = (h.titleEng ?? '').trim();
+    final uk = (h.title ?? '').trim();
+
+    if (_isEnglish(context)) return en.isNotEmpty ? en : uk;
+    return uk.isNotEmpty ? uk : en;
+  }
+
+  bool _matchesQuery(Hromada h, String qLower) {
+    final uk = (h.title ?? '').toLowerCase();
+    final en = (h.titleEng ?? '').toLowerCase();
+    return uk.contains(qLower) || en.contains(qLower);
+  }
+
+  List<Hromada> _filteredHromadas(BuildContext context) {
+    final all = _allHromadas;
+    final q = _query.trim().toLowerCase();
+
+    if (q.isEmpty) return all;
+    return all.where((h) => _matchesQuery(h, q)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = _filteredHromadas;
+    final items = _filteredHromadas(context);
+
+    final isEn = _isEnglish(context);
+    final titleText = isEn ? 'Choose community' : 'Оберіть громаду';
+    final searchHint = isEn ? 'Search community...' : 'Пошук громади...';
+    final pickWholeRaionText = isEn ? 'Select whole district' : 'Обрати весь район';
 
     return Scaffold(
-      resizeToAvoidBottomInset:
-          false, // ✅ щоб layout не стискався при клавіатурі
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 23, 13, 2),
@@ -101,9 +107,9 @@ class _HromadasPageState extends State<HromadasPage> {
         iconTheme: const IconThemeData(
           color: Color.fromARGB(255, 224, 125, 15),
         ),
-        title: const Text(
-          "Оберіть громаду",
-          style: TextStyle(
+        title: Text(
+          titleText,
+          style: const TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
           ),
@@ -113,42 +119,36 @@ class _HromadasPageState extends State<HromadasPage> {
             icon: const Icon(Icons.close),
             color: const Color.fromARGB(255, 224, 125, 15),
             onPressed: () {
-              // ✅ Закриваємо весь "ланцюжок" до RaionsListPage
-              Navigator.of(context).popUntil((route) {
-                return route.isFirst;
-              });
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
           ),
         ],
       ),
       body: Stack(
         children: [
-          // фон
-          Positioned(
+          const Positioned(
             left: -50,
             right: -50,
             top: -50,
             bottom: -50,
             child: Image(
-              image: const AssetImage("assets/back.png"),
-              color: const Color.fromARGB(32, 41, 41, 41),
+              image: AssetImage("assets/back.png"),
+              color: Color.fromARGB(32, 41, 41, 41),
             ),
           ),
-          Positioned(
+          const Positioned(
             left: -350,
             right: -350,
             bottom: -250,
             top: -100,
             child: Image(
-              image: const AssetImage("assets/radiation.png"),
-              color: const Color.fromARGB(17, 55, 27, 6),
+              image: AssetImage("assets/radiation.png"),
+              color: Color.fromARGB(17, 55, 27, 6),
             ),
           ),
 
-          // контент + пошук
           Column(
             children: [
-              // 🔥 ГРАДІЄНТ ПІД APPBAR
               SizedBox(
                 height: 2,
                 width: double.infinity,
@@ -157,7 +157,6 @@ class _HromadasPageState extends State<HromadasPage> {
                 ),
               ),
 
-              // 🔎 Пошук
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: TextField(
@@ -169,7 +168,7 @@ class _HromadasPageState extends State<HromadasPage> {
                   ),
                   cursorColor: const Color.fromARGB(255, 247, 135, 50),
                   decoration: InputDecoration(
-                    hintText: 'Пошук громади...',
+                    hintText: searchHint,
                     hintStyle: const TextStyle(
                       color: Color.fromARGB(130, 248, 137, 41),
                     ),
@@ -207,44 +206,32 @@ class _HromadasPageState extends State<HromadasPage> {
                 ),
               ),
 
-              // ✅ Список / Порожній результат
               Expanded(
                 child: items.isEmpty && _query.isNotEmpty
                     ? const EmptySearchResult()
                     : LayoutBuilder(
                         builder: (context, constrains) => ListView.separated(
-                          // +1 бо перший елемент: "Обрати весь район"
                           itemCount: items.length + 1,
                           itemBuilder: (context, index) {
+                            // ✅ "обрати весь район" — зберігаємо oblast+raion, hromada=null
                             if (index == 0) {
                               return ListTile(
+                                tileColor: const Color.fromARGB(4, 249, 189, 25),
                                 leading: SizedBox(
                                   height: constrains.maxHeight * 0.06,
-                                  child: Image(
-                                    image: const AssetImage(
-                                      'assets/bullet.png',
-                                    ),
-                                    color: const Color.fromARGB(
-                                      255,
-                                      224,
-                                      125,
-                                      15,
-                                    ),
+                                  child: const Image(
+                                    image: AssetImage('assets/bullet.png'),
+                                    color: Color.fromARGB(255, 224, 125, 15),
                                   ),
                                 ),
                                 title: Row(
                                   children: [
-                                    const Expanded(
+                                    Expanded(
                                       child: Text(
-                                        "Обрати весь район",
+                                        pickWholeRaionText,
                                         maxLines: 2,
-                                        style: TextStyle(
-                                          color: Color.fromARGB(
-                                            255,
-                                            248,
-                                            137,
-                                            41,
-                                          ),
+                                        style: const TextStyle(
+                                          color: Color.fromARGB(255, 248, 137, 41),
                                           fontSize: 16,
                                         ),
                                       ),
@@ -259,9 +246,6 @@ class _HromadasPageState extends State<HromadasPage> {
                                     action: () async {
                                       await FirebaseMessaging.instance
                                           .subscribeToTopic(widget.raion.uid!);
-                                      debugPrint(
-                                        '✅ subscribed to ${widget.raion.uid}',
-                                      );
 
                                       await SavedAdminUnitsStorage().add(
                                         Oblast(
@@ -273,14 +257,17 @@ class _HromadasPageState extends State<HromadasPage> {
                                           uid: widget.raion.uid,
                                           oblastUid: widget.raion.oblastUid,
                                           title: widget.raion.title,
-                                          titleEng: widget.raion.titleEng
+                                          titleEng: widget.raion.titleEng,
                                         ),
                                         Hromada(
                                           uid: null,
                                           raionUid: null,
                                           title: null,
+                                          titleEng: null,
                                         ),
                                       );
+
+                                      if (!mounted) return;
                                       Navigator.of(context).pop(true);
                                     },
                                   );
@@ -288,34 +275,27 @@ class _HromadasPageState extends State<HromadasPage> {
                               );
                             }
 
+                            // ✅ конкретна громада — зберігаємо ЛИШЕ громаду
                             final unit = items[index - 1];
+                            final showTitle = _displayHromadaTitle(context, unit);
 
                             return ListTile(
+                              tileColor: const Color.fromARGB(4, 249, 189, 25),
                               leading: SizedBox(
                                 height: constrains.maxHeight * 0.06,
-                                child: Image(
-                                  image: const AssetImage('assets/bullet.png'),
-                                  color: const Color.fromARGB(
-                                    255,
-                                    224,
-                                    125,
-                                    15,
-                                  ),
+                                child: const Image(
+                                  image: AssetImage('assets/bullet.png'),
+                                  color: Color.fromARGB(255, 224, 125, 15),
                                 ),
                               ),
                               title: Row(
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      unit.title ?? '',
+                                      showTitle,
                                       maxLines: 3,
                                       style: const TextStyle(
-                                        color: Color.fromARGB(
-                                          255,
-                                          248,
-                                          137,
-                                          41,
-                                        ),
+                                        color: Color.fromARGB(255, 248, 137, 41),
                                         fontSize: 16,
                                       ),
                                     ),
@@ -333,33 +313,26 @@ class _HromadasPageState extends State<HromadasPage> {
                                   net: _net,
                                   action: () async {
                                     await FirebaseMessaging.instance
-                                        .subscribeToTopic(
-                                          'hromada_${unit.uid!}',
-                                        );
-                                    debugPrint(
-                                      '✅ subscribed to hromada_${unit.uid!}',
-                                    );
+                                        .subscribeToTopic('hromada_${unit.uid!}');
+
                                     await SavedAdminUnitsStorage().add(
-                                      Oblast(
-                                        uid: null,
-                                        title: null,
-                                        titleEng: null,
-                                      ),
+                                      // ❗️лише громада
+                                      Oblast(uid: null, title: null, titleEng: null),
                                       Raion(
                                         uid: null,
                                         oblastUid: null,
                                         title: null,
-                                        titleEng: null
+                                        titleEng: null,
                                       ),
-                                      unit,
+                                      Hromada(
+                                        uid: unit.uid,
+                                        raionUid: unit.raionUid,
+                                        title: unit.title,
+                                        titleEng: unit.titleEng,
+                                      ),
                                     );
-                                    // Navigator.of(
-                                    //   context,
-                                    //   rootNavigator: true,
-                                    // ).pushNamedAndRemoveUntil(
-                                    //   '/raionsListScreen',
-                                    //   (route) => false,
-                                    // );
+
+                                    if (!mounted) return;
                                     Navigator.of(context).pop(true);
                                   },
                                 );

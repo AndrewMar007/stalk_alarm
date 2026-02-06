@@ -8,7 +8,7 @@ import 'package:stalc_alarm/core/ua_hromadas_dart_files/kharkivska_oblast_hromad
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/khersonska_oblast_hromadas.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/khmelnytska_oblast_hromadas.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/kirovohradska_oblast_hromadas.dart';
-import 'package:stalc_alarm/core/ua_hromadas_dart_files/kyyivska_oblast_hromadas.dart';
+import 'package:stalc_alarm/core/ua_hromadas_dart_files/kyivska_oblast_hromadas.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/luhanska_oblast_hromadas.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/lvivska_oblast_hromadas.dart';
 import 'package:stalc_alarm/core/ua_hromadas_dart_files/mykolayivska_oblast_hromadas.dart';

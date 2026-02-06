@@ -279,6 +279,7 @@ class _OblastsPageState extends State<OblastsPage> {
                                           uid: null,
                                           raionUid: null,
                                           title: null,
+                                          titleEng: null
                                         ),
                                       );
 
