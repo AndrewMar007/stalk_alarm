@@ -20,6 +20,10 @@ import 'injection_container.dart' as di;
 import 'l10n/app_localizations.dart';
 import 'router/route_generator.dart';
 
+import 'core/values/lists.dart';
+import 'core/ua_hromadas_dart_files/agregator/agregator.dart';
+import 'models/admin_units.dart';
+
 // ===== Local notifications plugin =====
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
 
@@ -70,10 +74,70 @@ class LocaleController {
       await sp.setString(_prefsKey, newLocale.languageCode);
     }
 
-    // Якщо в тебе є форматування дат/часу - ініціалізуємо під нову локаль
-    // (Можеш додати інші локалі при потребі)
     final code = newLocale?.languageCode ?? 'uk';
     await initializeDateFormatting(code == 'en' ? 'en_US' : 'uk_UA');
+  }
+}
+
+/// =========================
+/// ✅ Fast indexes for admin units (O(1) lookup)
+/// =========================
+class AdminIndex {
+  static final Map<String, Oblast> oblastByUid = {
+    for (final o in ListsOfAdministrativeUnits.oblasts)
+      if (o.uid != null) o.uid!: o,
+  };
+
+  static final Map<String, Raion> raionByUid = {
+    for (final r in ListsOfAdministrativeUnits.raions)
+      if (r.uid != null) r.uid!: r,
+  };
+
+  static final Map<String, Hromada> hromadaByUid = {
+    for (final h in RaionsAgregator.allHromadas)
+      if (h.uid != null) h.uid!: h,
+  };
+}
+
+String _normalizeIncomingUid(String uid, String level) {
+  final u = uid.trim();
+
+  // PushPoller шле uid як topic:
+  // hromada_UA.... -> UA....
+  if (level == 'hromada' && u.startsWith('hromada_')) {
+    return u.substring('hromada_'.length);
+  }
+  return u; // oblast_4 / raion_74 / UA... (якщо сервер вже так шле)
+}
+
+Future<bool> _isEnglishFromPrefs() async {
+  final sp = await SharedPreferences.getInstance();
+  final code = sp.getString('app_locale'); // твій ключ
+  return code == 'en';
+}
+
+String _resolveRegionTitle({
+  required String level, // 'oblast' | 'raion' | 'hromada'
+  required String uid, // uid з пуша (topic)
+  required bool isEn,
+}) {
+  final normalized = _normalizeIncomingUid(uid, level);
+
+  switch (level) {
+    case 'oblast':
+      final o = AdminIndex.oblastByUid[normalized];
+      return (isEn ? o?.titleEng : o?.title) ?? normalized;
+
+    case 'raion':
+      final r = AdminIndex.raionByUid[normalized];
+      return (isEn ? r?.titleEng : r?.title) ?? normalized;
+
+    case 'hromada':
+      final h = AdminIndex.hromadaByUid[normalized];
+      return (isEn ? h?.titleEng : h?.title) ?? normalized;
+
+    default:
+      return normalized;
   }
 }
 
@@ -84,30 +148,40 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await _handleIncomingMessage(message, isForeground: false);
 }
 
-/// Формуємо тексти з data payload: type/level/name/title/body
-Map<String, String> _composeTexts(RemoteMessage message) {
+/// Формуємо тексти з data payload: type/level/uid (+ fallback), локалізація по SharedPrefs
+Future<Map<String, String>> _composeTexts(RemoteMessage message) async {
   final type = (message.data['type'] ?? '').toString(); // ALARM_START / ALARM_END
-  final level = (message.data['level'] ?? message.data['scope'] ?? '').toString(); // hromada/raion/oblast
-  final name = (message.data['name'] ?? '').toString();
+  final level =
+      (message.data['level'] ?? message.data['scope'] ?? '').toString(); // hromada/raion/oblast
+  final uid = (message.data['uid'] ?? '').toString();
 
-  final title = (message.data['title'] ?? 'Stalk Alarm').toString();
-  final serverBody = (message.data['body'] ?? '').toString();
-
+  final isEn = await _isEnglishFromPrefs();
   final isStart = type == 'ALARM_START';
 
-  final region = name.isNotEmpty
-      ? name
-      : (message.data['oblast_title'] ?? message.data['raion_title'] ?? '').toString();
+  // якщо uid/level є — резолвимо назву по локалі
+  final region = (uid.isNotEmpty && level.isNotEmpty)
+      ? _resolveRegionTitle(level: level, uid: uid, isEn: isEn)
+      : (message.data['name'] ?? '').toString();
 
+  // серверні поля лишаємо як fallback (див. нижче “сервер” як зробити правильно)
+  final serverTitle = (message.data['title'] ?? '').toString();
+  final serverBody = (message.data['body'] ?? '').toString();
+
+  final fallbackTitle = 'Stalk Alarm';
   final fallbackBody = isStart
-      ? 'Увага! Насувається викид в "$region"! Пройдіть в найближче укриття!'
-      : 'Відбій в "$region". Слідкуйте за подальшими оновленнями!';
+      ? (isEn
+          ? 'Attention! An emission is coming in "$region"! Get to the nearest shelter!'
+          : 'Увага! Насувається викид в "$region"! Пройдіть в найближче укриття!')
+      : (isEn
+          ? 'All clear in "$region". Stay tuned for updates!'
+          : 'Відбій в "$region". Слідкуйте за подальшими оновленнями!');
 
   return {
     'type': type,
     'level': level,
+    'uid': uid,
     'name': region,
-    'title': title,
+    'title': serverTitle.isNotEmpty ? serverTitle : fallbackTitle,
     'body': serverBody.isNotEmpty ? serverBody : fallbackBody,
   };
 }
@@ -116,7 +190,7 @@ Map<String, String> _composeTexts(RemoteMessage message) {
 Future<void> _showSilentNotification(RemoteMessage message) async {
   if (message.notification != null) return; // тільки data-only
 
-  final t = _composeTexts(message);
+  final t = await _composeTexts(message);
 
   await fln.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -188,7 +262,8 @@ Future<void> main() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await fln.initialize(const InitializationSettings(android: androidInit));
 
-  final androidFln = fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final androidFln =
+      fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   await androidFln?.createNotificationChannel(silentInfoChannel);
 
   await FirebaseMessaging.instance.requestPermission(
@@ -199,7 +274,7 @@ Future<void> main() async {
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // ✅ Ініціалізуємо форматування дат для стартової локалі (поки load ще не зробив set)
+  // ✅ Ініціалізуємо форматування дат для стартової локалі
   await initializeDateFormatting('uk_UA');
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -241,12 +316,13 @@ class AppRoot extends StatelessWidget {
 class _AppLifecycleGate extends StatefulWidget {
   final Widget child;
   const _AppLifecycleGate({required this.child});
-
+  
   @override
   State<_AppLifecycleGate> createState() => _AppLifecycleGateState();
 }
 
-class _AppLifecycleGateState extends State<_AppLifecycleGate> with WidgetsBindingObserver {
+class _AppLifecycleGateState extends State<_AppLifecycleGate>
+    with WidgetsBindingObserver {
   Timer? _resumeDebounce;
   StreamSubscription<RemoteMessage>? _onMsgSub;
   StreamSubscription<RemoteMessage>? _onOpenedSub;
@@ -259,26 +335,27 @@ class _AppLifecycleGateState extends State<_AppLifecycleGate> with WidgetsBindin
     _onMsgSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       await _handleIncomingMessage(message, isForeground: true);
 
-      final t = _composeTexts(message);
+      final t = await _composeTexts(message);
       final type = (t['type'] ?? '').toString();
       final level = (t['level'] ?? '').toString();
       final name = (t['name'] ?? '').toString();
-      final uid = (message.data['uid'] ?? '').toString();
+      final uid = (t['uid'] ?? '').toString();
 
       if (type.isNotEmpty && level.isNotEmpty && name.isNotEmpty) {
         if (!mounted) return;
         context.read<AlarmBloc>().add(
-          PushAlarmEvent(
-            type: type,
-            level: level,
-            name: name,
-            uid: uid,
-          ),
-        );
+              PushAlarmEvent(
+                type: type,
+                level: level,
+                name: name,
+                uid: uid,
+              ),
+            );
       }
     });
 
-    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _onOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       // TODO: навігація якщо треба
     });
   }
@@ -332,10 +409,11 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
 
-          // ✅ Ось це тепер реально перемикає мову
+          // ✅ реальне перемикання мови
           locale: locale,
 
-          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          onGenerateTitle: (context) =>
+              AppLocalizations.of(context)!.appTitle,
 
           localizationsDelegates: const [
             AppLocalizations.delegate,

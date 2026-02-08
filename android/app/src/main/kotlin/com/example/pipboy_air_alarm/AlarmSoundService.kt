@@ -138,16 +138,19 @@ class AlarmSoundService : Service() {
   // 🔔 FOREGROUND
   // ===============================
   private fun startForegroundInternal() {
-    val n: Notification = NotificationCompat.Builder(this, CH_ID)
-      .setSmallIcon(R.drawable.ic_radiation)
-      .setContentTitle("Stalk Alarm")
-      .setContentText("Тривога активна")
-      .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_MAX)
-      .build()
+  val n: Notification = NotificationCompat.Builder(this, CH_ID)
+    .setSmallIcon(R.drawable.ic_radiation)
+    .setContentTitle(getString(R.string.app_name))
+    .setContentText(getString(R.string.alarm_active))
+    .setOngoing(true)
+    .setSilent(true)
+    .setOnlyAlertOnce(true)
+    .setPriority(NotificationCompat.PRIORITY_HIGH)
+    .build()
 
-    startForeground(NOTIF_ID, n)
-  }
+  startForeground(NOTIF_ID, n)
+}
+
 
   private fun ensureChannel() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
