@@ -54,9 +54,7 @@ Future<void> init() async {
     return dio;
   });
   //! Internet Guard (singleton)
-  sl.registerLazySingleton<InternetGuard>(() {
-    final g = InternetGuard();
-    g.start(); // ✅ запускаємо один раз на весь додаток
-    return g;
-  });
+ sl.registerLazySingleton<InternetGuard>(() => InternetGuard(
+  healthUrl: 'https://stalk-alarm-proxy-api.onrender.com/health',
+));
 }

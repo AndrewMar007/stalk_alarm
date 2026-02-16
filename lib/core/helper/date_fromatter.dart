@@ -1,17 +1,28 @@
 import 'package:intl/intl.dart';
 
 class AlarmUiFormat {
-  static final _time = DateFormat('HH:mm', 'uk_UA');
-  static final _dayMonth = DateFormat('d MMMM', 'uk_UA');
-  static final _fullDate = DateFormat('d MMMM yyyy', 'uk_UA');
-
   static int _daysDiff(DateTime a, DateTime b) {
     final da = DateTime(a.year, a.month, a.day);
     final db = DateTime(b.year, b.month, b.day);
     return da.difference(db).inDays;
   }
 
-  static String dateRangeLabel(DateTime startedAt, DateTime? finishedAt) {
+  static String dateRangeLabel(
+    DateTime startedAt,
+    DateTime? finishedAt, {
+    String localeCode = 'uk',
+  }) {
+    final isEn = localeCode == 'en';
+    final locale = isEn ? 'en_US' : 'uk_UA';
+
+    // ✅ ГОЛОВНЕ: формат часу
+    final timeFmt = isEn
+        ? DateFormat.jm(locale) // 2:30 PM
+        : DateFormat('HH:mm', locale); // 14:30
+
+    final dayMonth = DateFormat('d MMMM', locale);
+    final fullDate = DateFormat('d MMMM yyyy', locale);
+
     final start = startedAt.toLocal();
     final end = finishedAt?.toLocal();
     final now = DateTime.now();
@@ -20,22 +31,30 @@ class AlarmUiFormat {
 
     late final String dayLabel;
     if (diffDays == 0) {
-      dayLabel = 'Сьогодні';
+      dayLabel = isEn ? 'Today' : 'Сьогодні';
     } else if (diffDays == -1 || diffDays == -2) {
-      dayLabel = _dayMonth.format(start);
+      dayLabel = dayMonth.format(start);
     } else {
-      dayLabel = _fullDate.format(start);
+      dayLabel = fullDate.format(start);
     }
 
-    final startStr = _time.format(start);
-    final endStr = end == null ? 'триває' : _time.format(end);
+    final startStr = timeFmt.format(start);
+    final endStr = end == null
+        ? (isEn ? 'ongoing' : 'триває')
+        : timeFmt.format(end);
 
-    return '$dayLabel, $startStr - $endStr';
+    return '$dayLabel, $startStr – $endStr';
   }
 
-  static String durationLabel(DateTime startedAt, DateTime? finishedAt) {
+  static String durationLabel(
+    DateTime startedAt,
+    DateTime? finishedAt, {
+    String localeCode = 'uk',
+  }) {
+    final isEn = localeCode == 'en';
+
     if (finishedAt == null) {
-      return 'Триває';
+      return isEn ? 'Ongoing' : 'Триває';
     }
 
     final start = startedAt.toLocal();
@@ -44,13 +63,17 @@ class AlarmUiFormat {
     final diff = end.difference(start);
     final minutes = diff.inMinutes;
 
-    if (minutes < 1) return 'Тривалість < 1 хв';
+    if (minutes < 1) {
+      return isEn ? 'Duration < 1 min' : 'Тривалість < 1 хв';
+    }
 
     final h = minutes ~/ 60;
     final m = minutes % 60;
 
-    if (h == 0) return 'Тривалість $m хв';
-    if (m == 0) return 'Тривалість $h год';
-    return 'Тривалість $h год $m хв';
+    if (h == 0) return isEn ? 'Duration $m min' : 'Тривалість $m хв';
+    if (m == 0) return isEn ? 'Duration $h h' : 'Тривалість $h год';
+    return isEn
+        ? 'Duration $h h $m min'
+        : 'Тривалість $h год $m хв';
   }
 }

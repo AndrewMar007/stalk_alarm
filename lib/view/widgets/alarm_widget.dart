@@ -34,12 +34,14 @@ class AlertDialogWidget extends StatelessWidget {
   final VoidCallback? onCancelPressed;
   final IconData icon;
   final TextStyle? contentTextStyle;
+  final TextStyle? titleTextStyle;
   final bool isNeedAcceptButton;
   const AlertDialogWidget({
     super.key,
     required this.title,
     required this.icon,
     this.contentTextStyle,
+    this.titleTextStyle,
     required this.content,
     this.isNeedAcceptButton = true,
     this.acceptButtonText,
@@ -102,10 +104,10 @@ class AlertDialogWidget extends StatelessWidget {
                 // ТУТ уже сам AlertDialog, але з прозорим фоном (фон дає контейнер вище)
                 child: AlertDialog(
                   insetPadding: const EdgeInsets.symmetric(
-                    horizontal: 40,
+                    horizontal: 20,
                     vertical: 24,
                   ),
-                  contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  contentPadding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
                   actionsPadding: const EdgeInsets.only(bottom: 8, top: 20),
                   titlePadding: const EdgeInsets.only(
                     top: 12,
@@ -125,10 +127,7 @@ class AlertDialogWidget extends StatelessWidget {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Color(0xFFF88729),
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: titleTextStyle
                       ),
                     ],
                   ),

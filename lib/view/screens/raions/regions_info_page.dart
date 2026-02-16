@@ -8,6 +8,7 @@ import 'package:stalc_alarm/view/widgets/alarm_widget.dart';
 import '../../../core/nav/app_tab_controller.dart';
 import '../../../core/nav/selection_notifier.dart';
 import '../../../core/values/lists.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../models/admin_units.dart';
 
 class RaionsInfoPage extends StatefulWidget {
@@ -48,15 +49,47 @@ const separatedGradient = LinearGradient(
 );
 
 class _RaionsInfoPageState extends State<RaionsInfoPage> {
-  String _titleOfUnit(SavedAdminUnit u) {
-    if (u.hromadaTitle != null) return u.hromadaTitle!;
-    if (u.raionTitle != null) return u.raionTitle!;
-    return u.oblastTitle!;
+  bool _isEnglish(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'en';
+
+  String _pickTitle({
+    required bool isEn,
+    required String? uk,
+    required String? en,
+  }) {
+    final ukT = (uk ?? '').trim();
+    final enT = (en ?? '').trim();
+
+    if (isEn)
+      return enT.isNotEmpty ? enT : ukT; // якщо EN нема — fallback на UK
+    return ukT.isNotEmpty ? ukT : enT; // якщо UK нема — fallback на EN
+  }
+
+  /// ✅ title для Oblast/Raion/Hromada залежно від мови
+  String _titleOfUnit(BuildContext context, SavedAdminUnit u) {
+    final isEn = _isEnglish(context);
+
+    // 1) громада
+    if ((u.hromadaTitle ?? '').trim().isNotEmpty ||
+        (u.hromadaEngTitle ?? '').trim().isNotEmpty) {
+      return _pickTitle(isEn: isEn, uk: u.hromadaTitle, en: u.hromadaEngTitle);
+    }
+
+    // 2) район
+    if ((u.raionTitle ?? '').trim().isNotEmpty ||
+        (u.raionEngTitle ?? '').trim().isNotEmpty) {
+      return _pickTitle(isEn: isEn, uk: u.raionTitle, en: u.raionEngTitle);
+    }
+
+    // 3) область
+    return _pickTitle(isEn: isEn, uk: u.oblastTitle, en: u.oblastEngTitle);
   }
 
   final storage = SavedAdminUnitsStorage();
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 23, 13, 2),
       appBar: AppBar(
@@ -72,13 +105,14 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                 useRootNavigator: false,
                 builder: (dialogContext) => AlertDialogWidget(
                   icon: Icons.location_off_rounded,
-                  title: "Видалення регіону",
-                  content: "Ви точно впевнені, що хочете видалити регіон?",
-                  acceptButtonText: "Так",
+                  title: t.deleteRegion,
+                  content: t.deleteRegioDescription,
+                  acceptButtonText: t.approve,
+                  titleTextStyle: TextStyle(color: Color.fromARGB(255, 247, 135, 50)),
                   contentTextStyle: TextStyle(
                     color: Color.fromARGB(200, 248, 137, 41),
                   ),
-                  cancelButtonText: "Ні",
+                  cancelButtonText: t.cancel,
                   onAcceptPressed: () async {
                     if (widget.unit.raionUid != null) {
                       await FirebaseMessaging.instance.unsubscribeFromTopic(
@@ -94,6 +128,9 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                       await storage.remove(widget.unit);
                     } else if (widget.unit.hromadaUid != null) {
                       debugPrint('❌ unsubscribed to ${widget.unit.hromadaUid}');
+                        await FirebaseMessaging.instance.unsubscribeFromTopic(
+                        widget.unit.hromadaUid!,
+                      );
                       await storage.remove(widget.unit);
                     }
                     Navigator.of(dialogContext).pop(); // ✅ закрили діалог
@@ -114,7 +151,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
           ),
         ],
         title: Text(
-          "Інформація",
+          t.information,
           style: TextStyle(
             color: Color.fromARGB(255, 247, 135, 50),
             fontSize: 19,
@@ -162,7 +199,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                 children: [
                   SizedBox(height: constraints.maxHeight * 0.03),
                   Text(
-                    _titleOfUnit(widget.unit),
+                    _titleOfUnit(context, widget.unit),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color.fromARGB(255, 247, 135, 50),
@@ -185,8 +222,9 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                       SizedBox(height: constraints.maxHeight * 0.03),
                       Text(
                         widget.isActiveAlarm
-                            ? "Увага! У вашому регіоні викид!"
-                            : "Викиду немає",
+                            ? t.infromationAlarmText1
+                            : t.inforomationAlarmText3,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: widget.isActiveAlarm
                               ? Colors.red
@@ -198,8 +236,8 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
 
                       Text(
                         widget.isActiveAlarm
-                            ? "Пройдіть в найближче укриття!"
-                            : "Слідкуйте за подальшими оновленнями",
+                            ? t.inforomationAlarmText2
+                            : t.inforomationAlarmText4,
                         style: TextStyle(
                           color: widget.isActiveAlarm
                               ? Colors.red

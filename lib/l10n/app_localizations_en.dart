@@ -82,4 +82,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationFunc => 'Notification functionality test';
+
+  @override
+  String get information => 'Information';
+
+  @override
+  String get infromationAlarmText1 =>
+      'Attention! There is an emission in your region!';
+
+  @override
+  String get inforomationAlarmText2 => 'Go to the nearest shelter!';
+
+  @override
+  String get inforomationAlarmText3 => 'No emission';
+
+  @override
+  String get inforomationAlarmText4 => 'Stay tuned for further updates';
+
+  @override
+  String get deleteRegion => 'Remove region';
+
+  @override
+  String get deleteRegioDescription =>
+      'Are you sure you want to remove the region?';
+
+  @override
+  String get approve => 'Yes';
+
+  @override
+  String get cancel => 'No';
+
+  @override
+  String get wifiTitleTrue => 'Connection established';
+
+  @override
+  String get wifiTitleFalse => 'No connection';
+
+  @override
+  String get wifiContentTrue => 'You can close this window';
+
+  @override
+  String get wifiContentFalse =>
+      'There is no internet connection.\n Please check your settings';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get radiationLodearText => 'Loading data';
+
+  @override
+  String get historyLimit => 'History limit';
+
+  @override
+  String get hitoryTry => 'Try again in';
+
+  @override
+  String get seconds => 's.';
+
+  @override
+  String get timerEndTitle => 'Timer expired';
+
+  @override
+  String get timerEndDescription => 'You can try again';
+
+  @override
+  String get retry => 'Tap to retry';
+
+  @override
+  String get alarmRunning => 'Active';
+
+  @override
+  String get dataState => 'Today';
+
+  @override
+  String get emission => 'Emission';
+
+  @override
+  String get minutes => 'min';
+
+  @override
+  String get hour => 'h';
 }

@@ -15,14 +15,14 @@ class MainActivity : FlutterActivity() {
 
   private val CHANNEL = "stalk_alarm/alarm"
 
-  // ✅ prefs для “жорсткого mute”
+  // ✅ prefs для “гучності тривоги в додатку” (НЕ системної)
   private val PREFS = "stalk_alarm_prefs"
-  private val KEY_ALARM_STEP = "alarm_step"
+  private val KEY_ALARM_STEP = "alarm_step" // 0..max, -1 = не задавали
 
   private fun prefs() = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
   private fun getSavedAlarmStep(): Int =
-    prefs().getInt(KEY_ALARM_STEP, -1) // -1 = ще не задавали
+    prefs().getInt(KEY_ALARM_STEP, -1)
 
   private fun saveAlarmStep(step: Int) {
     prefs().edit().putInt(KEY_ALARM_STEP, step).apply()
@@ -37,16 +37,14 @@ class MainActivity : FlutterActivity() {
         when (call.method) {
 
           // ===============================
-          // 🔊 PLAY ALARM SOUND (STREAM_ALARM)
+          // 🔊 PLAY ALARM SOUND (STREAM_ALARM, TEMP BOOST INSIDE SERVICE)
           // ===============================
           "playAlarmSound" -> {
             val sound = call.argument<String>("sound") ?: "alarm"
 
-            // ✅ ЖОРСТКИЙ MUTE:
-            // якщо в додатку виставили 0 — не граємо взагалі
+            // ✅ якщо в додатку виставили 0 — не граємо
             val savedStep = getSavedAlarmStep()
             if (savedStep == 0) {
-              // на всяк випадок зупинимо, якщо щось грало
               try {
                 val stopIntent = Intent(this, AlarmSoundService::class.java).apply {
                   action = AlarmSoundService.ACT_STOP
@@ -83,33 +81,32 @@ class MainActivity : FlutterActivity() {
           }
 
           // ===============================
-          // 🔊 ALARM volume STEPS (cur/max)
+          // 🔊 ALARM volume STEPS (UI slider)
+          //
+          // ✅ Тепер: НЕ чіпаємо системний STREAM_ALARM тут взагалі.
+          // Повертаємо “cur” як збережений рівень, або системний якщо ще не задавали.
           // ===============================
           "getAlarmVolumeSteps" -> {
             val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+
+            val saved = getSavedAlarmStep()
+            val cur = if (saved >= 0) saved else am.getStreamVolume(AudioManager.STREAM_ALARM)
+
             result.success(mapOf("cur" to cur, "max" to max))
           }
 
           "setAlarmVolumeSteps" -> {
-            val stepArg = (call.argument<Int>("step") ?: 0)
-
             val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+
+            val stepArg = (call.argument<Int>("step") ?: 0)
             val target = stepArg.coerceIn(0, max)
 
-            // ✅ зберігаємо для “жорсткого mute”
+            // ✅ зберігаємо “цільовий рівень під час тривоги”
             saveAlarmStep(target)
 
-            // Показати UI + застосувати
-            am.setStreamVolume(
-              AudioManager.STREAM_ALARM,
-              target,
-              AudioManager.FLAG_SHOW_UI
-            )
-
-            // ✅ якщо 0 — одразу стопнемо звук
+            // ✅ якщо 0 — зупинимо звук, якщо щось грає
             if (target == 0) {
               val stopIntent = Intent(this, AlarmSoundService::class.java).apply {
                 action = AlarmSoundService.ACT_STOP
@@ -117,6 +114,7 @@ class MainActivity : FlutterActivity() {
               startService(stopIntent)
             }
 
+            // ✅ НІЯКОГО FLAG_SHOW_UI і НІЯКОГО setStreamVolume тут
             result.success(true)
           }
 

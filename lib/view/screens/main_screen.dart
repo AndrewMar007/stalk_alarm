@@ -1,3 +1,5 @@
+// main_screen.dart (REPLACE WHOLE FILE)
+
 import 'dart:async';
 import 'dart:math';
 
@@ -85,7 +87,7 @@ const verticalGradient = LinearGradient(
 class _MainScreenState extends State<MainScreen> {
   String? svgData;
 
-  /// ✅ кеш “підсвіченої” карти без залежності від мови (щоб миттєво перемикати en/uk)
+  /// ✅ кеш “підсвіченої” карти без залежності від мови
   String? _svgHighlightedRaw;
 
   Failure? _failure;
@@ -96,10 +98,8 @@ class _MainScreenState extends State<MainScreen> {
 
   String _time = '';
 
-  // ✅ тримаємо актуальну locale, щоб _updateTime() не залежав від BuildContext
-  // (оновлюємо в build)
   String _localeTag = 'uk';
-  String _langCode = 'uk'; // ✅ щоб знати en/uk для 12h/24h
+  String _langCode = 'uk';
 
   Set<int> _lastIds = {};
 
@@ -119,6 +119,18 @@ class _MainScreenState extends State<MainScreen> {
 
   final ValueNotifier<bool> _dialogConnected = ValueNotifier<bool>(false);
   bool _tapDialogOpen = false;
+  bool _offlineDialogDismissed = false; // ✅ користувач закрив офлайн-алерт під час офлайна
+
+  // ===============================
+  // ✅ FIX: показувати alert ТІЛЬКИ якщо офлайн підтверджено
+  // ===============================
+  Timer? _offlineDebounceTimer;
+  Timer? _offlineConfirmTimer;
+  int _offlineConfirmHits = 0;
+  bool _offlineConfirmed = false;
+
+  static const Duration _offlineDebounce = Duration(milliseconds: 700);
+  static const Duration _offlineConfirmWindow = Duration(milliseconds: 1700);
 
   void _startRestoreWatchdog() {
     _restoreWatchdog?.cancel();
@@ -163,6 +175,82 @@ class _MainScreenState extends State<MainScreen> {
     Future.microtask(() => _applyCurrentBlocStateIfAny());
   }
 
+  // ===============================
+  // ✅ CONFIRM OFFLINE LOGIC
+  // ===============================
+
+  void _resetOfflineConfirm() {
+    _offlineConfirmTimer?.cancel();
+    _offlineConfirmTimer = null;
+    _offlineConfirmHits = 0;
+    _offlineConfirmed = false;
+  }
+
+  void _scheduleOfflineConfirm() {
+    // рахуємо “офлайн хіти” всередині вікна (1.7с)
+    if (_offlineConfirmTimer == null) {
+      _offlineConfirmHits = 0;
+      _offlineConfirmed = false;
+      _offlineConfirmTimer = Timer(_offlineConfirmWindow, () {
+        // якщо за вікно було 2+ офлайн-ів — вважаємо реальним офлайном
+        if (!mounted) return;
+        _offlineConfirmTimer = null;
+        if (_offlineConfirmHits >= 2 && !_hasInternet) {
+          _offlineConfirmed = true;
+          _maybeShowOfflineDialog();
+        }
+      });
+    }
+
+    _offlineConfirmHits++;
+
+    // додатково: робимо контрольний check через 700мс (часто саме він повертає true)
+    _offlineDebounceTimer?.cancel();
+    _offlineDebounceTimer = Timer(_offlineDebounce, () async {
+      if (!mounted) return;
+      await _net.checkNow(); // якщо вже online — _onInternetChanged(true) скасує confirm
+    });
+  }
+
+  void _maybeShowOfflineDialog() {
+  if (!mounted) return;
+  if (_dialogOpen) return;
+  if (_offlineDialogDismissed) return; // ✅ НЕ показувати знову, якщо користувач закрив
+  if (!_offlineConfirmed) return;
+  _showNoInternetDialog();
+}
+
+
+  void _handleOfflineSignal() {
+    if (!mounted) return;
+
+    // UI показує “no internet” одразу (це ок), але діалог — тільки після confirm
+    if (_hasInternet) setState(() => _hasInternet = false);
+    _dialogConnected.value = false;
+
+    context.read<AlarmBloc>().add(StopAlarmPollingEvent());
+
+    _scheduleOfflineConfirm();
+  }
+
+  void _handleOnlineSignal() {
+    if (!mounted) return;
+    _offlineDialogDismissed = false; // ✅ дозволяємо показувати офлайн-діалог знову при наступному офлайні
+    _offlineDebounceTimer?.cancel();
+    _offlineDebounceTimer = null;
+
+    _resetOfflineConfirm();
+
+    if (!_hasInternet) setState(() => _hasInternet = true);
+    _dialogConnected.value = true;
+
+    _triggerRefreshAndPolling();
+  }
+
+  // ===============================
+  // Dialogs
+  // ===============================
+
   void _showNoInternetDialog() {
     _dialogOpen = true;
     _dialogConnected.value = _hasInternet;
@@ -172,24 +260,26 @@ class _MainScreenState extends State<MainScreen> {
       barrierDismissible: false,
       useRootNavigator: true,
       builder: (ctx) {
+        final t = AppLocalizations.of(context)!;
         return ValueListenableBuilder<bool>(
           valueListenable: _dialogConnected,
           builder: (context, ok, _) {
-            final contentText = ok
-                ? 'Підключено\nВи можете закрити це вікно.'
-                : 'Немає інтернет зʼєднання,\nперевірте налаштування.';
+            final contentText = ok ? t.wifiContentTrue : t.wifiContentFalse;
             return AlertDialogWidget(
-              title: 'Немає з’єднання',
+              title: ok ? t.wifiTitleTrue : t.wifiTitleFalse,
               isNeedAcceptButton: false,
               icon: ok ? Icons.wifi : Icons.wifi_off,
               content: contentText,
-              contentTextStyle: TextStyle(
-                color: ok
-                    ? Colors.green
-                    : const Color.fromARGB(200, 248, 137, 41),
+              titleTextStyle: TextStyle(
+                color: ok ? Colors.green : const Color.fromARGB(255, 247, 135, 50),
+                fontWeight: FontWeight.w800,
               ),
-              acceptButtonText: 'Закрити',
+              contentTextStyle: const TextStyle(
+                color: Color.fromARGB(200, 248, 137, 41),
+              ),
+              acceptButtonText: t.close,
               onAcceptPressed: () {
+                  _offlineDialogDismissed = true; // ✅ mute поки не стане online
                 Navigator.of(ctx, rootNavigator: true).pop();
                 _dialogOpen = false;
               },
@@ -206,25 +296,41 @@ class _MainScreenState extends State<MainScreen> {
     if (_tapDialogOpen) return;
     _tapDialogOpen = true;
 
-    await showDialog(
+    showDialog(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false,
+      useRootNavigator: true,
       builder: (ctx) {
-        return AlertDialogWidget(
-          title: 'Немає з’єднання',
-          isNeedAcceptButton: false,
-          icon: Icons.wifi_off,
-          content: 'Немає інтернет зʼєднання,\nперевірте налаштування.',
-          contentTextStyle: const TextStyle(
-            color: Color.fromARGB(200, 248, 137, 41),
-          ),
-          acceptButtonText: 'Закрити',
-          onAcceptPressed: () => Navigator.of(ctx).pop(),
+        final t = AppLocalizations.of(context)!;
+
+        return ValueListenableBuilder<bool>(
+          valueListenable: _dialogConnected,
+          builder: (context, ok, _) {
+            final contentText = ok ? t.wifiContentTrue : t.wifiContentFalse;
+            return AlertDialogWidget(
+              title: ok ? t.wifiTitleTrue : t.wifiTitleFalse,
+              isNeedAcceptButton: false,
+              icon: ok ? Icons.wifi : Icons.wifi_off,
+              content: contentText,
+              titleTextStyle: TextStyle(
+                color: ok ? Colors.green : const Color.fromARGB(255, 247, 135, 50),
+                fontWeight: FontWeight.w800,
+              ),
+              contentTextStyle: const TextStyle(
+                color: Color.fromARGB(200, 248, 137, 41),
+              ),
+              acceptButtonText: t.close,
+              onAcceptPressed: () {
+                Navigator.of(ctx, rootNavigator: true).pop();
+                _tapDialogOpen = false;
+              },
+            );
+          },
         );
       },
-    );
-
-    _tapDialogOpen = false;
+    ).then((_) {
+      _tapDialogOpen = false;
+    });
   }
 
   /* ===================== Alerts -> SVG ===================== */
@@ -232,15 +338,11 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _updateSvgFromAlerts(List<AlertModel> alerts) async {
     final ids = alerts.map((e) => e.locationOblastUid).whereType<int>().toSet();
 
-    // ✅ якщо набір ids той самий і вже маємо raw — просто переаплаїмо мову (на випадок зміни локалі)
     if (setEquals(ids, _lastIds) &&
         _svgHighlightedRaw != null &&
         _viewBox != null &&
         _idToPath.isNotEmpty) {
-      final localized = _applyLabelsLanguageByIdSuffix(
-        _svgHighlightedRaw!,
-        _langCode,
-      );
+      final localized = _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
 
       if (!mounted) return;
       setState(() {
@@ -259,12 +361,9 @@ class _MainScreenState extends State<MainScreen> {
       strokeWidth: 6,
     );
 
-    // ✅ кешуємо “підсвічений” svg без прив’язки до мови
     _svgHighlightedRaw = highlighted;
 
-    // ✅ застосовуємо потрібну мову для підписів
     final localized = _applyLabelsLanguageByIdSuffix(highlighted, _langCode);
-
     _parseSvgForHitTest(localized);
 
     if (!mounted) return;
@@ -282,9 +381,7 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final doc = XmlDocument.parse(svgString);
 
-      final svgEl = doc.findAllElements('svg').isNotEmpty
-          ? doc.findAllElements('svg').first
-          : null;
+      final svgEl = doc.findAllElements('svg').isNotEmpty ? doc.findAllElements('svg').first : null;
 
       if (svgEl != null) {
         final vb = svgEl.getAttribute('viewBox');
@@ -319,10 +416,7 @@ class _MainScreenState extends State<MainScreen> {
         _idToPath[id] = path;
         _idToBounds[id] = path.getBounds();
       }
-
-      debugPrint('✅ Parsed viewBox=$_viewBox, paths=${_idToPath.length}');
-    } catch (e) {
-      debugPrint('❌ SVG parse error: $e');
+    } catch (_) {
       _viewBox = null;
       _idToPath.clear();
       _idToBounds.clear();
@@ -345,18 +439,14 @@ class _MainScreenState extends State<MainScreen> {
       return Matrix4(a, b, 0, 0, c, d, 0, 0, 0, 0, 1, 0, e, f, 0, 1);
     }
 
-    final tr = RegExp(
-      r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
-    ).firstMatch(t);
+    final tr = RegExp(r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
     if (tr != null) {
       final x = double.tryParse(tr.group(1)!) ?? 0;
       final y = double.tryParse(tr.group(2) ?? '0') ?? 0;
       return Matrix4.identity()..translate(x, y);
     }
 
-    final sc = RegExp(
-      r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
-    ).firstMatch(t);
+    final sc = RegExp(r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
     if (sc != null) {
       final sx = double.tryParse(sc.group(1)!) ?? 1;
       final sy = double.tryParse(sc.group(2) ?? sc.group(1)!) ?? sx;
@@ -368,10 +458,7 @@ class _MainScreenState extends State<MainScreen> {
 
   /* ===================== Random streams / time ===================== */
 
-  Stream<double> rangedRandomStream({
-    required double min,
-    required double max,
-  }) {
+  Stream<double> rangedRandomStream({required double min, required double max}) {
     final random = Random();
     return Stream.periodic(const Duration(seconds: 3), (_) {
       final value = min + random.nextDouble() * (max - min);
@@ -387,23 +474,25 @@ class _MainScreenState extends State<MainScreen> {
     _net.addListener(_onInternetChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // ✅ стартова перевірка — НЕ відкриває діалог сама по собі
       final ok = await _net.checkNow();
       if (!mounted) return;
 
       setState(() => _hasInternet = ok);
+      _dialogConnected.value = ok;
 
-      if (!ok && !_dialogOpen) {
-        _dialogConnected.value = false;
-        _showNoInternetDialog();
-      } else {
+      if (ok) {
         _triggerRefreshAndPolling();
+      } else {
+        // тільки “сигнал офлайн”, діалог з’явиться лише після confirm
+        _handleOfflineSignal();
       }
     });
 
     s1 = rangedRandomStream(min: 0.0, max: 1.0);
     s2 = rangedRandomStream(min: 150.0, max: 450.0);
 
-    _updateTime(); // ✅ стартове
+    _updateTime();
     _scheduleNextTick();
   }
 
@@ -411,18 +500,11 @@ class _MainScreenState extends State<MainScreen> {
     if (!mounted) return;
 
     if (!ok) {
-      setState(() => _hasInternet = false);
-      if (_dialogOpen) _dialogConnected.value = false;
-
-      context.read<AlarmBloc>().add(StopAlarmPollingEvent());
-      if (!_dialogOpen) _showNoInternetDialog();
+      _handleOfflineSignal();
       return;
     }
 
-    setState(() => _hasInternet = true);
-    if (_dialogOpen) _dialogConnected.value = true;
-
-    _triggerRefreshAndPolling();
+    _handleOnlineSignal();
   }
 
   void _scheduleNextTick() {
@@ -435,27 +517,30 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  // ✅ ТЕПЕР час залежить від локалі
   void _updateTime() {
     final now = DateTime.now();
 
-    // ✅ en -> 12h (2:32 PM), інші -> 24h (14:32)
     final fmt = (_langCode == 'en')
-        ? DateFormat.jm(_localeTag) // 12h with AM/PM
-        : DateFormat.Hm(_localeTag); // 24h
+        ? DateFormat.jm(_localeTag)
+        : DateFormat.Hm(_localeTag);
 
     setState(() => _time = fmt.format(now));
   }
 
   /* ===================== Navigation ===================== */
 
-  String _oblastTitleById(int id) {
+  String _oblastTitleById(int id, {required bool isEnglish}) {
     final uid = "oblast_$id";
-    final found = ListsOfAdministrativeUnits.oblasts
-        .where((o) => o.uid == uid)
-        .toList();
-    if (found.isNotEmpty) return found.first.title!;
-    return "Невідомо ($uid)";
+
+    final found = ListsOfAdministrativeUnits.oblasts.where((o) => o.uid == uid).toList();
+    if (found.isEmpty) return isEnglish ? "Unknown ($uid)" : "Невідомо ($uid)";
+
+    final o = found.first;
+    final uk = (o.title ?? '').trim();
+    final en = (o.titleEng ?? '').trim();
+
+    if (isEnglish) return en.isNotEmpty ? en : uk;
+    return uk.isNotEmpty ? uk : en;
   }
 
   Future<void> _openOblastDetailsGuarded(int id) async {
@@ -467,7 +552,9 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
-    final title = _oblastTitleById(id);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final title = _oblastTitleById(id, isEnglish: isEn);
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OblastDetailsPage(id: id, title: title),
@@ -514,16 +601,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildLoading() {
-    return const Center(
-      key: ValueKey('loading'),
+    final t = AppLocalizations.of(context)!;
+    return Center(
+      key: const ValueKey('loading'),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          RadiationLoader(color: Color.fromARGB(255, 247, 135, 50)),
+          const RadiationLoader(color: Color.fromARGB(255, 247, 135, 50)),
           RadiationLoaderText(
-            text: "Завантаження даних",
-            style: TextStyle(color: Color.fromARGB(255, 186, 102, 38)),
+            text: t.radiationLodearText,
+            style: const TextStyle(color: Color.fromARGB(255, 186, 102, 38)),
           ),
         ],
       ),
@@ -531,16 +619,27 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildNoInternet() {
-    return const Center(
-      key: ValueKey('no_internet'),
-      child: Text(
-        'Немає з’єднання',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Color.fromARGB(255, 186, 102, 38),
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
+    final t = AppLocalizations.of(context)!;
+    return Center(
+      key: const ValueKey('no_internet'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.wifi_off_outlined,
+            color: Color.fromARGB(255, 247, 135, 50),
+            size: 100,
+          ),
+          Text(
+            t.wifiTitleFalse,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color.fromARGB(255, 247, 135, 50),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -640,7 +739,6 @@ class _MainScreenState extends State<MainScreen> {
     final langCode = loc.languageCode;
     final t = AppLocalizations.of(context)!;
 
-    // ✅ Якщо локаль змінилась — оновимо _localeTag/_langCode + час + SVG підписи (без чекання хвилини)
     if (_localeTag != localeTag || _langCode != langCode) {
       _localeTag = localeTag;
       _langCode = langCode;
@@ -650,14 +748,9 @@ class _MainScreenState extends State<MainScreen> {
 
         _updateTime();
 
-        // ✅ миттєво перемикаємо підписи на карті, не чіпаючи підсвічування
         if (_svgHighlightedRaw != null) {
-          final localized =
-              _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
-
-          // hit-test не залежить від підписів, але парсити ок з “поточним” svg
+          final localized = _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
           _parseSvgForHitTest(localized);
-
           setState(() => svgData = localized);
         }
       });
@@ -727,38 +820,24 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.49,
                                         child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Text(
                                               t.psiRadiation,
                                               textAlign: TextAlign.center,
                                               style: const TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
+                                                color: Color.fromARGB(255, 247, 135, 50),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(
-                                              height:
-                                                  constraints.maxHeight * 0.01,
-                                            ),
+                                            SizedBox(height: constraints.maxHeight * 0.01),
                                             StreamBuilder(
                                               stream: s1,
                                               builder: (context, snap) {
                                                 return Text(
                                                   "${(snap.data ?? 0).toStringAsFixed(2)} ${t.units}",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(
-                                                      255,
-                                                      247,
-                                                      135,
-                                                      50,
-                                                    ),
+                                                    color: Color.fromARGB(255, 247, 135, 50),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -776,39 +855,25 @@ class _MainScreenState extends State<MainScreen> {
                                         height: constraints.maxHeight * 0.1,
                                         width: constraints.maxWidth * 0.488,
                                         child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Text(
                                               t.abnormalFrequency,
                                               textAlign: TextAlign.center,
                                               maxLines: 2,
                                               style: const TextStyle(
-                                                color: Color.fromARGB(
-                                                  255,
-                                                  247,
-                                                  135,
-                                                  50,
-                                                ),
+                                                color: Color.fromARGB(255, 247, 135, 50),
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            SizedBox(
-                                              height:
-                                                  constraints.maxHeight * 0.01,
-                                            ),
+                                            SizedBox(height: constraints.maxHeight * 0.01),
                                             StreamBuilder(
                                               stream: s2,
                                               builder: (context, snap) {
                                                 return Text(
                                                   "${(snap.data ?? 150).toStringAsFixed(0)} ${t.frequency}",
                                                   style: const TextStyle(
-                                                    color: Color.fromARGB(
-                                                      255,
-                                                      247,
-                                                      135,
-                                                      50,
-                                                    ),
+                                                    color: Color.fromARGB(255, 247, 135, 50),
                                                     fontSize: 15.0,
                                                   ),
                                                 );
@@ -823,29 +888,19 @@ class _MainScreenState extends State<MainScreen> {
                                     height: constraints.maxHeight * 0.06,
                                     width: constraints.maxWidth,
                                     child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        SizedBox(
-                                          height: constraints.maxHeight * 0.005,
-                                        ),
+                                        SizedBox(height: constraints.maxHeight * 0.005),
                                         GradientDivider(
                                           gradient: dividerGradient,
                                           thickness: 2,
                                         ),
-                                        SizedBox(
-                                          height: constraints.maxHeight * 0.01,
-                                        ),
+                                        SizedBox(height: constraints.maxHeight * 0.01),
                                         FittedBox(
                                           child: Text(
                                             "$formattedDate, $_time",
                                             style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                255,
-                                                247,
-                                                135,
-                                                50,
-                                              ),
+                                              color: Color.fromARGB(255, 247, 135, 50),
                                               fontSize: 16.0,
                                             ),
                                           ),
@@ -862,7 +917,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
 
-                  // фон
                   const Positioned(
                     left: -50,
                     right: -50,
@@ -884,7 +938,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
 
-                  // Карта по центру
                   Positioned(
                     left: 0,
                     right: 0,
@@ -916,6 +969,9 @@ class _MainScreenState extends State<MainScreen> {
     _timer?.cancel();
     _restoreWatchdog?.cancel();
 
+    _offlineDebounceTimer?.cancel();
+    _offlineConfirmTimer?.cancel();
+
     _net.removeListener(_onInternetChanged);
 
     _dialogConnected.dispose();
@@ -925,9 +981,6 @@ class _MainScreenState extends State<MainScreen> {
 
   /* ===================== SVG language switching ===================== */
 
-  /// ✅ Перемикає видимість груп лейблів по суфіксу id: *_en / *_uk
-  /// Працює з твоїми id типу:
-  /// label_kyiv_city_en, label_kyiv_city_uk, ...
   String _applyLabelsLanguageByIdSuffix(String svg, String langCode) {
     try {
       final doc = XmlDocument.parse(svg);
@@ -941,7 +994,7 @@ class _MainScreenState extends State<MainScreen> {
         if (id.endsWith('_en')) {
           shouldShow = (langCode == 'en');
         } else if (id.endsWith('_uk')) {
-          shouldShow = (langCode != 'en'); // дефолт для всіх не-en
+          shouldShow = (langCode != 'en');
         } else {
           continue;
         }
@@ -951,7 +1004,6 @@ class _MainScreenState extends State<MainScreen> {
 
       return doc.toXmlString(pretty: false);
     } catch (_) {
-      // якщо раптом парсинг впав — просто повернемо як є
       return svg;
     }
   }
@@ -1124,11 +1176,6 @@ Future<String> highlightRaionsSvgByIds({
       return tag.replaceFirst('>', '$inject>');
     },
   );
-
-  debugPrint('✅ Painted raions: $painted / ${ids.length}');
-  if (painted == 0) {
-    debugPrint('❌ No matching <path id="..."> found for ids: $ids');
-  }
 
   return svg;
 }

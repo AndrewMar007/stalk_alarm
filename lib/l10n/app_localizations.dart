@@ -247,6 +247,162 @@ abstract class AppLocalizations {
   /// In uk, this message translates to:
   /// **'Тест функцій сповіщень'**
   String get notificationFunc;
+
+  /// No description provided for @information.
+  ///
+  /// In uk, this message translates to:
+  /// **'Інформація'**
+  String get information;
+
+  /// No description provided for @infromationAlarmText1.
+  ///
+  /// In uk, this message translates to:
+  /// **'Увага! У вашому регіоні викид!'**
+  String get infromationAlarmText1;
+
+  /// No description provided for @inforomationAlarmText2.
+  ///
+  /// In uk, this message translates to:
+  /// **'Пройдіть в найближче укриття!'**
+  String get inforomationAlarmText2;
+
+  /// No description provided for @inforomationAlarmText3.
+  ///
+  /// In uk, this message translates to:
+  /// **'Викиду немає'**
+  String get inforomationAlarmText3;
+
+  /// No description provided for @inforomationAlarmText4.
+  ///
+  /// In uk, this message translates to:
+  /// **'Слідкуйте за подальшими оновленнями'**
+  String get inforomationAlarmText4;
+
+  /// No description provided for @deleteRegion.
+  ///
+  /// In uk, this message translates to:
+  /// **'Видалення регіону'**
+  String get deleteRegion;
+
+  /// No description provided for @deleteRegioDescription.
+  ///
+  /// In uk, this message translates to:
+  /// **'Ви точно впевнені, що хочете видалити регіон?'**
+  String get deleteRegioDescription;
+
+  /// No description provided for @approve.
+  ///
+  /// In uk, this message translates to:
+  /// **'Так'**
+  String get approve;
+
+  /// No description provided for @cancel.
+  ///
+  /// In uk, this message translates to:
+  /// **'Ні'**
+  String get cancel;
+
+  /// No description provided for @wifiTitleTrue.
+  ///
+  /// In uk, this message translates to:
+  /// **'З\'єднання встановлене'**
+  String get wifiTitleTrue;
+
+  /// No description provided for @wifiTitleFalse.
+  ///
+  /// In uk, this message translates to:
+  /// **'Немає з\'єднання'**
+  String get wifiTitleFalse;
+
+  /// No description provided for @wifiContentTrue.
+  ///
+  /// In uk, this message translates to:
+  /// **'Ви можете закрити це вікно'**
+  String get wifiContentTrue;
+
+  /// No description provided for @wifiContentFalse.
+  ///
+  /// In uk, this message translates to:
+  /// **'Немає інтернет зʼєднання,\nперевірте налаштування'**
+  String get wifiContentFalse;
+
+  /// No description provided for @close.
+  ///
+  /// In uk, this message translates to:
+  /// **'Закрити'**
+  String get close;
+
+  /// No description provided for @radiationLodearText.
+  ///
+  /// In uk, this message translates to:
+  /// **'Завантаження даних'**
+  String get radiationLodearText;
+
+  /// No description provided for @historyLimit.
+  ///
+  /// In uk, this message translates to:
+  /// **'Ліміт історії'**
+  String get historyLimit;
+
+  /// No description provided for @hitoryTry.
+  ///
+  /// In uk, this message translates to:
+  /// **'Спробуйте через'**
+  String get hitoryTry;
+
+  /// No description provided for @seconds.
+  ///
+  /// In uk, this message translates to:
+  /// **'с.'**
+  String get seconds;
+
+  /// No description provided for @timerEndTitle.
+  ///
+  /// In uk, this message translates to:
+  /// **'Таймер сплинув'**
+  String get timerEndTitle;
+
+  /// No description provided for @timerEndDescription.
+  ///
+  /// In uk, this message translates to:
+  /// **'Можете спробувати ще раз'**
+  String get timerEndDescription;
+
+  /// No description provided for @retry.
+  ///
+  /// In uk, this message translates to:
+  /// **'Повторити'**
+  String get retry;
+
+  /// No description provided for @alarmRunning.
+  ///
+  /// In uk, this message translates to:
+  /// **'Active'**
+  String get alarmRunning;
+
+  /// No description provided for @dataState.
+  ///
+  /// In uk, this message translates to:
+  /// **'Сьогодні'**
+  String get dataState;
+
+  /// No description provided for @emission.
+  ///
+  /// In uk, this message translates to:
+  /// **'Викид'**
+  String get emission;
+
+  /// No description provided for @minutes.
+  ///
+  /// In uk, this message translates to:
+  /// **'хв'**
+  String get minutes;
+
+  /// No description provided for @hour.
+  ///
+  /// In uk, this message translates to:
+  /// **'год'**
+  String get hour;
 }
 
 class _AppLocalizationsDelegate

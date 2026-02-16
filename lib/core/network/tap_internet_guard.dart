@@ -7,19 +7,19 @@ Future<void> showNoInternetDialog(BuildContext context) async {
   // ✅ щоб не показувати 10 діалогів при частих тапах
   if (ModalRoute.of(context)?.isCurrent == false) return;
 
-  // return showDialog<void>(
-  //   context: context,
-  //   builder: (ctx) => AlertDialog(
-  //     title: const Text("Немає з’єднання"),
-  //     content: const Text("Немає інтернет зʼєднання.\nПеревірте мережу і спробуйте ще раз."),
-  //     actions: [
-  //       TextButton(
-  //         onPressed: () => Navigator.of(ctx).pop(),
-  //         child: const Text("Ок"),
-  //       ),
-  //     ],
-  //   ),
-  // );
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text("Немає з’єднання"),
+      content: const Text("Немає інтернет зʼєднання.\nПеревірте мережу і спробуйте ще раз."),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text("Ок"),
+        ),
+      ],
+    ),
+  );
 }
 
 Future<void> runIfOnline(

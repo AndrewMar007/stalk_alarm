@@ -148,6 +148,19 @@ class _SettingsPageState extends State<SettingsPage>
     } catch (_) {}
   }
 
+  String _soundByLocale(BuildContext context, {required bool isStart}) {
+    final forced = LocaleController.instance.locale.value;
+    final lang = (forced ?? Localizations.localeOf(context)).languageCode;
+
+    final isEn = lang == 'en';
+
+    if (isStart) {
+      return isEn ? 'alarm_en' : 'alarm_uk';
+    } else {
+      return isEn ? 'alarm_end_en' : 'alarm_end_uk';
+    }
+  }
+
   // =========================
   // ✅ Language switcher
   // =========================
@@ -172,30 +185,35 @@ class _SettingsPageState extends State<SettingsPage>
       ),
       builder: (ctx) {
         const accent = Color.fromARGB(255, 248, 137, 41);
+        final l = _effectiveLocale(context).languageCode;
 
         Widget tile({
           required String title,
           required String subtitle,
           required Locale? locale,
         }) {
-          return ListTile(
-            title: Text(
-              title,
-              style: const TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w700,
+          return Column(
+            children: [
+              ListTile(
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                // subtitle: Text(
+                //   subtitle,
+                //   style: TextStyle(color: accent.withOpacity(0.7)),
+                // ),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  await LocaleController.instance.set(locale);
+                  if (!mounted) return;
+                  setState(() {});
+                },
               ),
-            ),
-            subtitle: Text(
-              subtitle,
-              style: TextStyle(color: accent.withOpacity(0.7)),
-            ),
-            onTap: () async {
-              Navigator.of(ctx).pop();
-              await LocaleController.instance.set(locale);
-              if (!mounted) return;
-              setState(() {});
-            },
+            ],
           );
         }
 
@@ -203,24 +221,51 @@ class _SettingsPageState extends State<SettingsPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              SizedBox(
+                  height: 2,
+                  width: double.infinity,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(gradient: bottomGradient),
+                  ),
+                ),
               const SizedBox(height: 10),
               Container(
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.35),
+                  color: accent,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
+               
+              Text(
+                l == "en" ? "Choose language" : "Оберіть мову",
+                style: TextStyle(color: accent, fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                  height: 2,
+                  width: double.infinity,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(gradient: bottomGradient),
+                  ),
+                ),
               tile(
-                title: '🇺🇦 Українська',
-                subtitle: 'uk (за замовчуванням)',
+                title: 'Українська',
+                subtitle: '',
                 locale: const Locale('uk'),
               ),
+               SizedBox(
+                  height: 2,
+                  width: double.infinity,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(gradient: bottomGradient),
+                  ),
+                ),
               tile(
-                title: '🇺🇸 English',
-                subtitle: 'en',
+                title: 'English',
+                subtitle: '',
                 locale: const Locale('en'),
               ),
 
@@ -273,7 +318,7 @@ class _SettingsPageState extends State<SettingsPage>
           final headerH = fromH(
             0.31,
             min: ui(150, min: 130, max: 210),
-            max: ui(240, min: 190, max: 280),
+            max: ui(240, min: 190, max: 240),
           );
 
           final padX = fromW(0.02, min: 12, max: 28);
@@ -447,7 +492,7 @@ class _SettingsPageState extends State<SettingsPage>
                                   ),
                                 ),
                               ),
-                              SizedBox(height: fromH(0.04, min: 10, max: 18)),
+                              SizedBox(height: fromH(0.06, min: 10, max: 30)),
 
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: padX),
@@ -460,7 +505,9 @@ class _SettingsPageState extends State<SettingsPage>
                                       bottomGradient: bottomButtonGradient,
                                       radius: ui(30, min: 22, max: 34),
                                       strokeWidth: 1,
-                                      onTap: () => _playTest('alarm'),
+                                      onTap: () => _playTest(
+                                        _soundByLocale(context, isStart: true),
+                                      ),
                                       child: Padding(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: btnPadX,
@@ -482,7 +529,9 @@ class _SettingsPageState extends State<SettingsPage>
                                       bottomGradient: bottomButtonGradient,
                                       radius: ui(30, min: 22, max: 34),
                                       strokeWidth: 1,
-                                      onTap: () => _playTest('alarm_end'),
+                                      onTap: () => _playTest(
+                                        _soundByLocale(context, isStart: false),
+                                      ),
                                       child: Padding(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: btnPadX,
