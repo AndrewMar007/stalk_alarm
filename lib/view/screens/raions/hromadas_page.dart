@@ -104,6 +104,8 @@ class _HromadasPageState extends State<HromadasPage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
+          scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(
           color: Color.fromARGB(255, 224, 125, 15),
         ),
@@ -317,7 +319,7 @@ class _HromadasPageState extends State<HromadasPage> {
 
                                     await SavedAdminUnitsStorage().add(
                                       // ❗️лише громада
-                                      Oblast(uid: null, title: null, titleEng: null),
+                                      Oblast(uid: widget.oblast.uid, title: null, titleEng: null),
                                       Raion(
                                         uid: null,
                                         oblastUid: null,

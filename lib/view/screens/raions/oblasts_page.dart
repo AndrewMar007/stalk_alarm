@@ -124,6 +124,8 @@ class _OblastsPageState extends State<OblastsPage> {
             fontSize: 19,
           ),
         ),
+          scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
             icon: const Icon(Icons.close),

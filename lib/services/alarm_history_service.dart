@@ -1,67 +1,52 @@
 import 'package:dio/dio.dart';
-import 'package:stalc_alarm/core/exceptions/exceptions.dart';
-import 'package:stalc_alarm/models/alarm_history_model.dart';
 
 import '../core/api_config/api_config.dart';
+import '../core/exceptions/exceptions.dart';
+import '../models/oblast_history_with_risk_response.dart';
 
 abstract class AlarmHistoryService {
-  Future<List<AlarmHistoryModel>> getAlarmHistory({
+  Future<OblastHistoryWithRiskResponse> getAlarmHistoryWithRisk({
     required int oblastId,
-    required int days,
+    required int days, // для UI (ти шлеш 3, але сервер і так дасть 3)
   });
 }
 
 class AlarmHistoryServiceImpl extends AlarmHistoryService {
   final Dio client;
   AlarmHistoryServiceImpl({required this.client});
-  List<AlarmHistoryModel> _convertMapToList(Object data) {
-    List<AlarmHistoryModel> list = (data as List)
-        .map((e) => AlarmHistoryModel.fromJson(e))
-        .toList();
-    return list;
-  }
 
   @override
-  Future<List<AlarmHistoryModel>> getAlarmHistory({
+  Future<OblastHistoryWithRiskResponse> getAlarmHistoryWithRisk({
     required int oblastId,
     required int days,
   }) async {
     try {
-           // final response = await client.get('/this-endpoint-does-not-exist');
       final response = await client.get(
-        "${ApiConfig.alarmsHistory}$oblastId?days=$days",
+        "${ApiConfig.alarmsHistory}$oblastId",
+        queryParameters: {"days": days},
       );
-      final data = response.data['alerts'];
-      return _convertMapToList(data);
+
+      return OblastHistoryWithRiskResponse.fromJson(
+        Map<String, dynamic>.from(response.data),
+      );
     } on DioException catch (e) {
-      // 1) Нема response -> інтернет/таймаут тощо
-      if (e.response == null) {
-        throw InternetException();
-      }
+      if (e.response == null) throw InternetException();
 
       final status = e.response?.statusCode;
-
-      // 2) 429 -> дістаємо retryAfterSec
       if (status == 429) {
-        int retryAfter = 45; // fallback
-
-        // a) з JSON (твій сервер віддає retryAfterSec)
+        int retryAfter = 5;
         final data = e.response?.data;
         if (data is Map && data['retryAfterSec'] is num) {
           retryAfter = (data['retryAfterSec'] as num).toInt();
         }
 
-        // b) або з header Retry-After
         final raHeader = e.response?.headers.value('retry-after');
         final raParsed = int.tryParse(raHeader ?? '');
-        if (raParsed != null && raParsed > 0) {
-          retryAfter = raParsed;
-        }
+        if (raParsed != null && raParsed > 0) retryAfter = raParsed;
 
         throw RateLimitException(retryAfter);
       }
 
-      // 3) інші відповіді сервера
       throw ServerException();
     }
   }

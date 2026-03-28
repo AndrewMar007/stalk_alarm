@@ -6,7 +6,7 @@
   "ongoing": "ongoing",
   "alarm": "Alerts",
   "map": "Map",
-  "useful": "Useful",
+  "useful": "Information",
   "regions": "Regions",
   "selectOblast": "Region",
   "selectRaion": "Raion",
@@ -51,5 +51,8 @@
   "dataState": "Today",
   "emission": "Emission",
   "minutes": "min",
-  "hour": "h"
+  "hour": "h",
+  "error_server": "Server is not responding\nWe are working to restore service",
+  "error_no_internet": "No internet connection",
+  "error_rate_limit": "Too many requests. Try again later"
 }

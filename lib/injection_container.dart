@@ -2,10 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:stalc_alarm/core/api_config/api_config.dart';
 import 'package:stalc_alarm/core/network/network_info.dart';
+import 'package:stalc_alarm/services/alarm_forecast_service.dart';
 import 'package:stalc_alarm/services/alarm_history_service.dart';
 import 'package:stalc_alarm/services/alarm_service.dart';
+import 'package:stalc_alarm/use_cases/get_alarm_forecast.dart';
 import 'package:stalc_alarm/use_cases/get_alarm_history.dart';
 import 'package:stalc_alarm/use_cases/get_current_alarm.dart';
+import 'package:stalc_alarm/view_model/alarm_forecast_view_model.dart';
 import 'package:stalc_alarm/view_model/alarm_history_view_model.dart';
 import 'package:stalc_alarm/view_model/alarm_view_model.dart';
 
@@ -17,6 +20,7 @@ Future<void> init() async {
   //! Use Cases
   sl.registerLazySingleton(() => GetCurrentAlarm(alarmViewModel: sl()));
   sl.registerLazySingleton(() => GetAlarmHistory(alarmHistoryViewModel: sl()));
+  sl.registerLazySingleton(() => GetAlarmForecastUseCase(viewModel: sl()));
   //! Core
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
   //! Service
@@ -24,6 +28,7 @@ Future<void> init() async {
   sl.registerLazySingleton<AlarmHistoryService>(
     () => AlarmHistoryServiceImpl(client: sl()),
   );
+  sl.registerLazySingleton<AlarmForecastService>(() => AlarmForecastServiceImpl(client: sl()));
   //! ViewModel
   sl.registerLazySingleton<AlarmViewModel>(
     () => AlarmViewModelImpl(networkInfo: sl(), service: sl()),
@@ -31,6 +36,7 @@ Future<void> init() async {
   sl.registerLazySingleton<AlarmHistoryViewModel>(
     () => AlarmHistoryViewModelImpl(networkInfo: sl(), service: sl()),
   );
+  sl.registerLazySingleton<AlarmForecastViewModel>(() => AlarmForecastViewModelImpl(service: sl(), networkInfo: sl()));
 
   //! Dio settings
   sl.registerLazySingleton<Dio>(() {

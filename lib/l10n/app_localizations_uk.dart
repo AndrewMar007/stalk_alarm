@@ -27,7 +27,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get map => 'Мапа';
 
   @override
-  String get useful => 'Корисне';
+  String get useful => 'Інформація';
 
   @override
   String get regions => 'Регіони';
@@ -102,8 +102,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get deleteRegion => 'Видалення регіону';
 
   @override
-  String get deleteRegioDescription =>
-      'Ви точно впевнені, що хочете видалити регіон?';
+  String get deleteRegioDescription => 'Ви точно впевнені, що хочете видалити регіон?';
 
   @override
   String get approve => 'Так';
@@ -121,8 +120,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get wifiContentTrue => 'Ви можете закрити це вікно';
 
   @override
-  String get wifiContentFalse =>
-      'Немає інтернет зʼєднання,\nперевірте налаштування';
+  String get wifiContentFalse => 'Немає інтернет зʼєднання,\nперевірте налаштування';
 
   @override
   String get close => 'Закрити';
@@ -162,4 +160,13 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get hour => 'год';
+
+  @override
+  String get error_server => 'На жаль сервер не відповідає\nМи робимо все можливе аби відновити роботу';
+
+  @override
+  String get error_no_internet => 'Немає інтернет з\'єднання';
+
+  @override
+  String get error_rate_limit => 'Занадто часті запити. Спробуйте пізніше';
 }

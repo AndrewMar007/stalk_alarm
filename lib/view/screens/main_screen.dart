@@ -119,7 +119,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final ValueNotifier<bool> _dialogConnected = ValueNotifier<bool>(false);
   bool _tapDialogOpen = false;
-  bool _offlineDialogDismissed = false; // ✅ користувач закрив офлайн-алерт під час офлайна
+  bool _offlineDialogDismissed =
+      false; // ✅ користувач закрив офлайн-алерт під час офлайна
 
   // ===============================
   // ✅ FIX: показувати alert ТІЛЬКИ якщо офлайн підтверджено
@@ -208,18 +209,19 @@ class _MainScreenState extends State<MainScreen> {
     _offlineDebounceTimer?.cancel();
     _offlineDebounceTimer = Timer(_offlineDebounce, () async {
       if (!mounted) return;
-      await _net.checkNow(); // якщо вже online — _onInternetChanged(true) скасує confirm
+      await _net
+          .checkNow(); // якщо вже online — _onInternetChanged(true) скасує confirm
     });
   }
 
   void _maybeShowOfflineDialog() {
-  if (!mounted) return;
-  if (_dialogOpen) return;
-  if (_offlineDialogDismissed) return; // ✅ НЕ показувати знову, якщо користувач закрив
-  if (!_offlineConfirmed) return;
-  _showNoInternetDialog();
-}
-
+    if (!mounted) return;
+    if (_dialogOpen) return;
+    if (_offlineDialogDismissed)
+      return; // ✅ НЕ показувати знову, якщо користувач закрив
+    if (!_offlineConfirmed) return;
+    _showNoInternetDialog();
+  }
 
   void _handleOfflineSignal() {
     if (!mounted) return;
@@ -235,7 +237,8 @@ class _MainScreenState extends State<MainScreen> {
 
   void _handleOnlineSignal() {
     if (!mounted) return;
-    _offlineDialogDismissed = false; // ✅ дозволяємо показувати офлайн-діалог знову при наступному офлайні
+    _offlineDialogDismissed =
+        false; // ✅ дозволяємо показувати офлайн-діалог знову при наступному офлайні
     _offlineDebounceTimer?.cancel();
     _offlineDebounceTimer = null;
 
@@ -271,7 +274,9 @@ class _MainScreenState extends State<MainScreen> {
               icon: ok ? Icons.wifi : Icons.wifi_off,
               content: contentText,
               titleTextStyle: TextStyle(
-                color: ok ? Colors.green : const Color.fromARGB(255, 247, 135, 50),
+                color: ok
+                    ? Colors.green
+                    : const Color.fromARGB(255, 247, 135, 50),
                 fontWeight: FontWeight.w800,
               ),
               contentTextStyle: const TextStyle(
@@ -279,7 +284,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
               acceptButtonText: t.close,
               onAcceptPressed: () {
-                  _offlineDialogDismissed = true; // ✅ mute поки не стане online
+                _offlineDialogDismissed = true; // ✅ mute поки не стане online
                 Navigator.of(ctx, rootNavigator: true).pop();
                 _dialogOpen = false;
               },
@@ -313,7 +318,9 @@ class _MainScreenState extends State<MainScreen> {
               icon: ok ? Icons.wifi : Icons.wifi_off,
               content: contentText,
               titleTextStyle: TextStyle(
-                color: ok ? Colors.green : const Color.fromARGB(255, 247, 135, 50),
+                color: ok
+                    ? Colors.green
+                    : const Color.fromARGB(255, 247, 135, 50),
                 fontWeight: FontWeight.w800,
               ),
               contentTextStyle: const TextStyle(
@@ -342,7 +349,10 @@ class _MainScreenState extends State<MainScreen> {
         _svgHighlightedRaw != null &&
         _viewBox != null &&
         _idToPath.isNotEmpty) {
-      final localized = _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
+      final localized = _applyLabelsLanguageByIdSuffix(
+        _svgHighlightedRaw!,
+        _langCode,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -381,7 +391,9 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final doc = XmlDocument.parse(svgString);
 
-      final svgEl = doc.findAllElements('svg').isNotEmpty ? doc.findAllElements('svg').first : null;
+      final svgEl = doc.findAllElements('svg').isNotEmpty
+          ? doc.findAllElements('svg').first
+          : null;
 
       if (svgEl != null) {
         final vb = svgEl.getAttribute('viewBox');
@@ -439,14 +451,18 @@ class _MainScreenState extends State<MainScreen> {
       return Matrix4(a, b, 0, 0, c, d, 0, 0, 0, 0, 1, 0, e, f, 0, 1);
     }
 
-    final tr = RegExp(r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
+    final tr = RegExp(
+      r'translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
+    ).firstMatch(t);
     if (tr != null) {
       final x = double.tryParse(tr.group(1)!) ?? 0;
       final y = double.tryParse(tr.group(2) ?? '0') ?? 0;
       return Matrix4.identity()..translate(x, y);
     }
 
-    final sc = RegExp(r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)').firstMatch(t);
+    final sc = RegExp(
+      r'scale\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)',
+    ).firstMatch(t);
     if (sc != null) {
       final sx = double.tryParse(sc.group(1)!) ?? 1;
       final sy = double.tryParse(sc.group(2) ?? sc.group(1)!) ?? sx;
@@ -458,7 +474,10 @@ class _MainScreenState extends State<MainScreen> {
 
   /* ===================== Random streams / time ===================== */
 
-  Stream<double> rangedRandomStream({required double min, required double max}) {
+  Stream<double> rangedRandomStream({
+    required double min,
+    required double max,
+  }) {
     final random = Random();
     return Stream.periodic(const Duration(seconds: 3), (_) {
       final value = min + random.nextDouble() * (max - min);
@@ -532,7 +551,9 @@ class _MainScreenState extends State<MainScreen> {
   String _oblastTitleById(int id, {required bool isEnglish}) {
     final uid = "oblast_$id";
 
-    final found = ListsOfAdministrativeUnits.oblasts.where((o) => o.uid == uid).toList();
+    final found = ListsOfAdministrativeUnits.oblasts
+        .where((o) => o.uid == uid)
+        .toList();
     if (found.isEmpty) return isEnglish ? "Unknown ($uid)" : "Невідомо ($uid)";
 
     final o = found.first;
@@ -749,7 +770,10 @@ class _MainScreenState extends State<MainScreen> {
         _updateTime();
 
         if (_svgHighlightedRaw != null) {
-          final localized = _applyLabelsLanguageByIdSuffix(_svgHighlightedRaw!, _langCode);
+          final localized = _applyLabelsLanguageByIdSuffix(
+            _svgHighlightedRaw!,
+            _langCode,
+          );
           _parseSvgForHitTest(localized);
           setState(() => svgData = localized);
         }
@@ -804,112 +828,63 @@ class _MainScreenState extends State<MainScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         RepaintBoundary(
-                          child: GradientBorderTopBottom(
-                            topGradient: topGradient,
-                            bottomGradient: bottomGradient,
-                            strokeWidth: 2,
-                            radius: 0,
-                            child: SizedBox(
-                              height: constraints.maxHeight * 0.163,
-                              width: constraints.maxWidth,
-                              child: Column(
-                                children: [
-                                  Row(
+                          child: SizedBox(
+                            height: constraints.maxHeight * 0.088,
+                            width: constraints.maxWidth,
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  height: 2,
+                                  width: double.infinity,
+                                  child: const DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: bottomGradient,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: constraints.maxHeight * 0.08,
+                                  width: constraints.maxWidth,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      SizedBox(
-                                        height: constraints.maxHeight * 0.1,
-                                        width: constraints.maxWidth * 0.49,
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              t.psiRadiation,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: Color.fromARGB(255, 247, 135, 50),
-                                                fontSize: 12,
-                                              ),
+                                      FittedBox(
+                                        child: Text(
+                                          "$formattedDate, $_time",
+                                          style: const TextStyle(
+                                            color: Color.fromARGB(
+                                              255,
+                                              247,
+                                              135,
+                                              50,
                                             ),
-                                            SizedBox(height: constraints.maxHeight * 0.01),
-                                            StreamBuilder(
-                                              stream: s1,
-                                              builder: (context, snap) {
-                                                return Text(
-                                                  "${(snap.data ?? 0).toStringAsFixed(2)} ${t.units}",
-                                                  style: const TextStyle(
-                                                    color: Color.fromARGB(255, 247, 135, 50),
-                                                    fontSize: 15.0,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      GradientVerticalDivider(
-                                        gradient: verticalGradient,
-                                        thickness: 1.5,
-                                        height: constraints.maxHeight * 0.1,
-                                      ),
-                                      SizedBox(
-                                        height: constraints.maxHeight * 0.1,
-                                        width: constraints.maxWidth * 0.488,
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              t.abnormalFrequency,
-                                              textAlign: TextAlign.center,
-                                              maxLines: 2,
-                                              style: const TextStyle(
-                                                color: Color.fromARGB(255, 247, 135, 50),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            SizedBox(height: constraints.maxHeight * 0.01),
-                                            StreamBuilder(
-                                              stream: s2,
-                                              builder: (context, snap) {
-                                                return Text(
-                                                  "${(snap.data ?? 150).toStringAsFixed(0)} ${t.frequency}",
-                                                  style: const TextStyle(
-                                                    color: Color.fromARGB(255, 247, 135, 50),
-                                                    fontSize: 15.0,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
+                                            fontSize: 16.0,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(
-                                    height: constraints.maxHeight * 0.06,
-                                    width: constraints.maxWidth,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(height: constraints.maxHeight * 0.005),
-                                        GradientDivider(
-                                          gradient: dividerGradient,
-                                          thickness: 2,
-                                        ),
-                                        SizedBox(height: constraints.maxHeight * 0.01),
-                                        FittedBox(
-                                          child: Text(
-                                            "$formattedDate, $_time",
-                                            style: const TextStyle(
-                                              color: Color.fromARGB(255, 247, 135, 50),
-                                              fontSize: 16.0,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                ),
+                                SizedBox(
+                                  height: 2,
+                                  width: double.infinity,
+                                  child: const DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          Color.fromARGB(72, 232, 136, 27),
+                                          Color.fromARGB(255, 20, 11, 2),
+                                          Color.fromARGB(255, 20, 11, 2),
+                                          Color.fromARGB(66, 232, 136, 27),
+                                        ],
+                                        stops: [0.0, 0.2, 0.4, 1.0],
+                                      ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

@@ -1,20 +1,20 @@
 import 'package:equatable/equatable.dart';
 import 'package:fpdart/fpdart.dart';
-import 'package:stalc_alarm/models/alarm_history_model.dart';
-import 'package:stalc_alarm/view_model/alarm_history_view_model.dart';
 
 import '../core/exceptions/failures.dart';
 import '../core/usecases/use_case.dart';
+import '../models/oblast_history_with_risk_response.dart';
+import '../view_model/alarm_history_view_model.dart';
 
 class GetAlarmHistory
-    extends UseCase<List<AlarmHistoryModel>, AlarmHistoryParams> {
+    extends UseCase<OblastHistoryWithRiskResponse, AlarmHistoryParams> {
   final AlarmHistoryViewModel alarmHistoryViewModel;
   GetAlarmHistory({required this.alarmHistoryViewModel});
   @override
-  Future<Either<Failure, List<AlarmHistoryModel>>> call(
+  Future<Either<Failure, OblastHistoryWithRiskResponse>> call(
     AlarmHistoryParams params,
   ) async {
-    return await alarmHistoryViewModel.getAlarmHistory(
+    return await alarmHistoryViewModel.getAlarmHistoryWithRisk(
       oblastId: params.oblastId,
       days: params.days,
     );

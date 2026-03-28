@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:stalc_alarm/view/screens/help.dart';
+import 'package:stalc_alarm/view/screens/information_page.dart';
 import 'package:stalc_alarm/view/screens/main_screen.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/screens/settings_page.dart';
@@ -170,7 +171,7 @@ class _CupertinoBottomBarState extends State<CupertinoBottomBar> {
                         case 1:
                           return const RaionsListPage();
                         case 2:
-                          return const HelpPage();
+                          return const InformationPage();
                         default:
                           return const SettingsPage();
                       }

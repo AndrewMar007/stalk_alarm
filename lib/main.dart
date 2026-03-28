@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_event.dart';
+import 'package:stalc_alarm/view/bloc/alarm_forecast_bloc/alarm_forecast_bloc.dart';
 import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc.dart';
 
 import 'core/network/internet_guard.dart';
@@ -232,6 +233,7 @@ class AppRoot extends StatelessWidget {
         BlocProvider(
           create: (_) => AlarmHistoryBloc(getAlarmHistoryUseCase: di.sl()),
         ),
+        BlocProvider(create: (_) => AlarmForecastBloc(getAlarmForecastUseCase: di.sl())),
       ],
       child: const _AppLifecycleGate(child: MyApp()),
     );

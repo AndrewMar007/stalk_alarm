@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:stalc_alarm/core/exceptions/failures.dart';
-import 'package:stalc_alarm/use_cases/get_alarm_history.dart';
-import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc_event.dart';
-import 'package:stalc_alarm/view/bloc/alarm_history_bloc/alarm_history_bloc_state.dart';
+
+import '../../../core/exceptions/failures.dart';
+import '../../../use_cases/get_alarm_history.dart';
+import 'alarm_history_bloc_event.dart';
+import 'alarm_history_bloc_state.dart';
 
 class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState> {
   final GetAlarmHistory getAlarmHistoryUseCase;
@@ -12,10 +13,9 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
   Timer? _timer;
   int _secondsLeft = 0;
 
-  AlarmHistoryBloc({required this.getAlarmHistoryUseCase}) : super(InitState()) {
+  AlarmHistoryBloc({required this.getAlarmHistoryUseCase}) : super(InitHistoryState()) {
     on<GetAlarmHistoryBlocEvent>(_getAlarmHistory);
 
-    // ✅ internal handlers for countdown
     on<HistoryRateLimitStart>(_onRateLimitStart);
     on<HistoryRateLimitTick>(_onRateLimitTick);
   }
@@ -30,13 +30,12 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
     GetAlarmHistoryBlocEvent event,
     Emitter<AlarmHistoryBlocState> emit,
   ) async {
-    // якщо вже активний ліміт — просто показуємо countdown
     if (_secondsLeft > 0) {
-      emit(RateLimitedState(secondsLeft: _secondsLeft));
+      emit(RateHistoryLimitedState(secondsLeft: _secondsLeft));
       return;
     }
 
-    emit(LoadingState());
+    emit(LoadingHistoryState());
 
     final data = await getAlarmHistoryUseCase.call(
       AlarmHistoryParams(oblastId: event.oblastId, days: event.days),
@@ -45,18 +44,25 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
     data.fold(
       (failure) {
         if (failure is RateLimitFailure) {
-          final seconds = failure.retryAfterSec <= 0 ? 45 : failure.retryAfterSec;
-          // ✅ НЕ emit з таймера — запускаємо через подію
+          final seconds = failure.retryAfterSec <= 0 ? 5 : failure.retryAfterSec;
           add(HistoryRateLimitStart(seconds));
           return;
         }
 
-        emit(ErrorState(failure: failure));
+        emit(ErrorHistoryState(failure: failure));
       },
-      (list) {
+      (resp) {
         _timer?.cancel();
         _secondsLeft = 0;
-        emit(LoadedState(listOfModel: list));
+
+        emit(
+          LoadedHistoryState(
+            listOfModel: resp.alerts,
+            risk: resp.risk,
+            updatedAt: resp.updatedAt,
+            historyUpdatedAt: resp.historyUpdatedAt,
+          ),
+        );
       },
     );
   }
@@ -68,9 +74,8 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
     _timer?.cancel();
     _secondsLeft = event.seconds;
 
-    emit(RateLimitedState(secondsLeft: _secondsLeft));
+    emit(RateHistoryLimitedState(secondsLeft: _secondsLeft));
 
-    // ✅ timer тільки додає події
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       add(HistoryRateLimitTick());
     });
@@ -82,7 +87,7 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
   ) {
     if (_secondsLeft <= 0) {
       _timer?.cancel();
-      emit(InitState());
+      emit(InitHistoryState());
       return;
     }
 
@@ -90,9 +95,9 @@ class AlarmHistoryBloc extends Bloc<AlarmHistoryBlocEvent, AlarmHistoryBlocState
 
     if (_secondsLeft <= 0) {
       _timer?.cancel();
-      emit(InitState());
+      emit(InitHistoryState());
     } else {
-      emit(RateLimitedState(secondsLeft: _secondsLeft));
+      emit(RateHistoryLimitedState(secondsLeft: _secondsLeft));
     }
   }
 }

@@ -1,27 +1,29 @@
 import 'package:equatable/equatable.dart';
 
 abstract class Failure extends Equatable {
-  final String message;
-  const Failure(this.message);
+  /// 🔑 ключ локалізації
+  final String key;
+
+  const Failure(this.key);
+
+  @override
+  List<Object?> get props => [key];
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure() : super('Server Failure');
-  @override
-  List<Object?> get props => [];
+  const ServerFailure() : super('error_server');
 }
 
 class InternetFailure extends Failure {
-  const InternetFailure() : super('Internet Failure');
-  @override
-  List<Object?> get props => [];
+  const InternetFailure() : super('error_no_internet');
 }
 
 class RateLimitFailure extends Failure {
   final int retryAfterSec;
+
   const RateLimitFailure(this.retryAfterSec)
-      : super('History rate limit reached');
+      : super('error_rate_limit');
 
   @override
-  List<Object?> get props => [retryAfterSec];
+  List<Object?> get props => [key, retryAfterSec];
 }

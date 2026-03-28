@@ -353,7 +353,6 @@ class _SettingsPageState extends State<SettingsPage>
                   child: const Image(
                     image: AssetImage('assets/back.png'),
                     color: Color.fromARGB(32, 41, 41, 41),
-                    fit: BoxFit.cover,
                   ),
                 ),
                 Positioned(
@@ -364,7 +363,6 @@ class _SettingsPageState extends State<SettingsPage>
                   child: const Image(
                     image: AssetImage('assets/radiation.png'),
                     color: Color.fromARGB(15, 54, 27, 6),
-                    fit: BoxFit.cover,
                   ),
                 ),
 

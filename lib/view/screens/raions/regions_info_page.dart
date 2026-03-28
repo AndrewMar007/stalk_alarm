@@ -1,7 +1,9 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stalc_alarm/core/local_storage/raions_storage.dart';
+import 'package:stalc_alarm/view/bloc/alarm_bloc/alarm_bloc_state.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/widgets/alarm_widget.dart';
 
@@ -10,6 +12,12 @@ import '../../../core/nav/selection_notifier.dart';
 import '../../../core/values/lists.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/admin_units.dart';
+import '../../bloc/alarm_forecast_bloc/alarm_forecast_bloc.dart';
+import '../../bloc/alarm_forecast_bloc/alarm_forecast_bloc_event.dart';
+import '../../bloc/alarm_forecast_bloc/alarm_forecast_bloc_state.dart';
+import '../../widgets/forecase_widget.dart';
+import '../../widgets/radiation_loader.dart';
+import '../../widgets/radiation_loader_text.dart';
 
 class RaionsInfoPage extends StatefulWidget {
   final SavedAdminUnit unit;
@@ -29,8 +37,8 @@ const bottomGradient = LinearGradient(
   end: Alignment.centerRight,
   colors: [
     Color.fromARGB(72, 232, 136, 27),
-    Color.fromARGB(255, 57, 33, 6),
-    Color.fromARGB(255, 45, 26, 5),
+    Color.fromARGB(255, 28, 16, 3),
+    Color.fromARGB(255, 24, 14, 3),
     Color.fromARGB(66, 232, 136, 27),
   ],
   stops: [0.02, 0.25, 0.6, 1.0],
@@ -85,6 +93,14 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
     return _pickTitle(isEn: isEn, uk: u.oblastTitle, en: u.oblastEngTitle);
   }
 
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    final id = int.parse(widget.unit.oblastUid!.replaceFirst('oblast_', ''));
+    context.read<AlarmForecastBloc>().add(AlarmGetForecastEvent(oblastId: id));
+  }
+
   final storage = SavedAdminUnitsStorage();
   @override
   Widget build(BuildContext context) {
@@ -95,6 +111,8 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: Color.fromARGB(255, 224, 125, 15)),
         actions: [
           IconButton(
@@ -108,19 +126,25 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                   title: t.deleteRegion,
                   content: t.deleteRegioDescription,
                   acceptButtonText: t.approve,
-                  titleTextStyle: TextStyle(color: Color.fromARGB(255, 247, 135, 50)),
+                  titleTextStyle: TextStyle(
+                    color: Color.fromARGB(255, 247, 135, 50),
+                  ),
                   contentTextStyle: TextStyle(
                     color: Color.fromARGB(200, 248, 137, 41),
                   ),
                   cancelButtonText: t.cancel,
                   onAcceptPressed: () async {
-                    if (widget.unit.raionUid != null) {
+                    if (widget.unit.raionUid != null &&
+                        widget.unit.oblastUid != null &&
+                        widget.unit.hromadaUid == null) {
                       await FirebaseMessaging.instance.unsubscribeFromTopic(
                         widget.unit.raionUid!,
                       );
                       debugPrint('❌ unsubscribed to ${widget.unit.raionUid}');
                       await storage.remove(widget.unit);
-                    } else if (widget.unit.oblastUid != null) {
+                    } else if (widget.unit.oblastUid != null &&
+                        widget.unit.raionUid == null &&
+                        widget.unit.hromadaUid == null) {
                       await FirebaseMessaging.instance.unsubscribeFromTopic(
                         widget.unit.oblastUid!,
                       );
@@ -128,8 +152,8 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                       await storage.remove(widget.unit);
                     } else if (widget.unit.hromadaUid != null) {
                       debugPrint('❌ unsubscribed to ${widget.unit.hromadaUid}');
-                        await FirebaseMessaging.instance.unsubscribeFromTopic(
-                        widget.unit.hromadaUid!,
+                      await FirebaseMessaging.instance.unsubscribeFromTopic(
+                        "hromada_${widget.unit.hromadaUid!}",
                       );
                       await storage.remove(widget.unit);
                     }
@@ -206,7 +230,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                       fontSize: 20,
                     ),
                   ),
-                  SizedBox(height: constraints.maxHeight * 0.03),
+                  SizedBox(height: constraints.maxHeight * 0.0),
 
                   Column(
                     children: [
@@ -219,7 +243,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                         fit: BoxFit.cover,
                         width: constraints.maxWidth * 0.6,
                       ),
-                      SizedBox(height: constraints.maxHeight * 0.03),
+                      SizedBox(height: constraints.maxHeight * 0.0),
                       Text(
                         widget.isActiveAlarm
                             ? t.infromationAlarmText1
@@ -232,7 +256,7 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                           fontSize: 20,
                         ),
                       ),
-                      SizedBox(height: constraints.maxHeight * 0.03),
+                      SizedBox(height: constraints.maxHeight * 0.02),
 
                       Text(
                         widget.isActiveAlarm
@@ -242,6 +266,11 @@ class _RaionsInfoPageState extends State<RaionsInfoPage> {
                           color: widget.isActiveAlarm
                               ? Colors.red
                               : Color.fromARGB(255, 247, 135, 50),
+                        ),
+                      ),
+                      AlarmForecastPanel(
+                        oblastId: int.parse(
+                          widget.unit.oblastUid!.replaceFirst('oblast_', ''),
                         ),
                       ),
                     ],

@@ -112,6 +112,8 @@ class _RaionsPageState extends State<RaionsPage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 23, 13, 2),
         centerTitle: true,
+          scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(
           color: Color.fromARGB(255, 224, 125, 15),
         ),

@@ -27,7 +27,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get map => 'Map';
 
   @override
-  String get useful => 'Useful';
+  String get useful => 'Information';
 
   @override
   String get regions => 'Regions';
@@ -87,8 +87,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get information => 'Information';
 
   @override
-  String get infromationAlarmText1 =>
-      'Attention! There is an emission in your region!';
+  String get infromationAlarmText1 => 'Attention! There is an emission in your region!';
 
   @override
   String get inforomationAlarmText2 => 'Go to the nearest shelter!';
@@ -103,8 +102,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteRegion => 'Remove region';
 
   @override
-  String get deleteRegioDescription =>
-      'Are you sure you want to remove the region?';
+  String get deleteRegioDescription => 'Are you sure you want to remove the region?';
 
   @override
   String get approve => 'Yes';
@@ -122,8 +120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wifiContentTrue => 'You can close this window';
 
   @override
-  String get wifiContentFalse =>
-      'There is no internet connection.\n Please check your settings';
+  String get wifiContentFalse => 'There is no internet connection.\n Please check your settings';
 
   @override
   String get close => 'Close';
@@ -163,4 +160,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hour => 'h';
+
+  @override
+  String get error_server => 'Server is not responding\nWe are working to restore service';
+
+  @override
+  String get error_no_internet => 'No internet connection';
+
+  @override
+  String get error_rate_limit => 'Too many requests. Try again later';
 }

@@ -62,8 +62,7 @@ import 'app_localizations_uk.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,8 +70,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,329 +82,345 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('uk'),
+    Locale('uk')
   ];
 
   /// No description provided for @appTitle.
   ///
-  /// In uk, this message translates to:
+  /// In en, this message translates to:
   /// **'Stalc Alarm'**
   String get appTitle;
 
   /// No description provided for @settings.
   ///
-  /// In uk, this message translates to:
-  /// **'Налаштування'**
+  /// In en, this message translates to:
+  /// **'Settings'**
   String get settings;
 
   /// No description provided for @language.
   ///
-  /// In uk, this message translates to:
-  /// **'Мова'**
+  /// In en, this message translates to:
+  /// **'Language'**
   String get language;
 
   /// No description provided for @ongoing.
   ///
-  /// In uk, this message translates to:
-  /// **'триває'**
+  /// In en, this message translates to:
+  /// **'ongoing'**
   String get ongoing;
 
   /// No description provided for @alarm.
   ///
-  /// In uk, this message translates to:
-  /// **'Тривоги'**
+  /// In en, this message translates to:
+  /// **'Alerts'**
   String get alarm;
 
   /// No description provided for @map.
   ///
-  /// In uk, this message translates to:
-  /// **'Мапа'**
+  /// In en, this message translates to:
+  /// **'Map'**
   String get map;
 
   /// No description provided for @useful.
   ///
-  /// In uk, this message translates to:
-  /// **'Корисне'**
+  /// In en, this message translates to:
+  /// **'Information'**
   String get useful;
 
   /// No description provided for @regions.
   ///
-  /// In uk, this message translates to:
-  /// **'Регіони'**
+  /// In en, this message translates to:
+  /// **'Regions'**
   String get regions;
 
   /// No description provided for @selectOblast.
   ///
-  /// In uk, this message translates to:
-  /// **'Область'**
+  /// In en, this message translates to:
+  /// **'Region'**
   String get selectOblast;
 
   /// No description provided for @selectRaion.
   ///
-  /// In uk, this message translates to:
-  /// **'Район'**
+  /// In en, this message translates to:
+  /// **'Raion'**
   String get selectRaion;
 
   /// No description provided for @selectHromada.
   ///
-  /// In uk, this message translates to:
-  /// **'Громади'**
+  /// In en, this message translates to:
+  /// **'Hromada'**
   String get selectHromada;
 
   /// No description provided for @change.
   ///
-  /// In uk, this message translates to:
-  /// **'Змінити'**
+  /// In en, this message translates to:
+  /// **'Change'**
   String get change;
 
   /// No description provided for @psiRadiation.
   ///
-  /// In uk, this message translates to:
-  /// **'Псі-випромінювання'**
+  /// In en, this message translates to:
+  /// **'Psi-radiation'**
   String get psiRadiation;
 
   /// No description provided for @abnormalFrequency.
   ///
-  /// In uk, this message translates to:
-  /// **'Аномальна частота'**
+  /// In en, this message translates to:
+  /// **'Abnormal frequency'**
   String get abnormalFrequency;
 
   /// No description provided for @units.
   ///
-  /// In uk, this message translates to:
-  /// **'Од'**
+  /// In en, this message translates to:
+  /// **'u'**
   String get units;
 
   /// No description provided for @frequency.
   ///
-  /// In uk, this message translates to:
-  /// **'кГц'**
+  /// In en, this message translates to:
+  /// **'kHz'**
   String get frequency;
 
   /// No description provided for @alarmVolume.
   ///
-  /// In uk, this message translates to:
-  /// **'Гучність сигналу тривоги'**
+  /// In en, this message translates to:
+  /// **'Alarm volume'**
   String get alarmVolume;
 
   /// No description provided for @level.
   ///
-  /// In uk, this message translates to:
-  /// **'Рівень'**
+  /// In en, this message translates to:
+  /// **'Level'**
   String get level;
 
   /// No description provided for @alarmStart.
   ///
-  /// In uk, this message translates to:
-  /// **'Початок тривоги'**
+  /// In en, this message translates to:
+  /// **'Alarm start'**
   String get alarmStart;
 
   /// No description provided for @alarmEnd.
   ///
-  /// In uk, this message translates to:
-  /// **'Кінець тривоги'**
+  /// In en, this message translates to:
+  /// **'Alarm end'**
   String get alarmEnd;
 
   /// No description provided for @alarmStop.
   ///
-  /// In uk, this message translates to:
-  /// **'Зупинити'**
+  /// In en, this message translates to:
+  /// **'Stop'**
   String get alarmStop;
 
   /// No description provided for @notifications.
   ///
-  /// In uk, this message translates to:
-  /// **'Сповіщення'**
+  /// In en, this message translates to:
+  /// **'Notifications'**
   String get notifications;
 
   /// No description provided for @enabled.
   ///
-  /// In uk, this message translates to:
-  /// **'Увімкнені'**
+  /// In en, this message translates to:
+  /// **'Enabled'**
   String get enabled;
 
   /// No description provided for @disabled.
   ///
-  /// In uk, this message translates to:
-  /// **'Вимкнені'**
+  /// In en, this message translates to:
+  /// **'Disabled'**
   String get disabled;
 
   /// No description provided for @notificationFunc.
   ///
-  /// In uk, this message translates to:
-  /// **'Тест функцій сповіщень'**
+  /// In en, this message translates to:
+  /// **'Notification functionality test'**
   String get notificationFunc;
 
   /// No description provided for @information.
   ///
-  /// In uk, this message translates to:
-  /// **'Інформація'**
+  /// In en, this message translates to:
+  /// **'Information'**
   String get information;
 
   /// No description provided for @infromationAlarmText1.
   ///
-  /// In uk, this message translates to:
-  /// **'Увага! У вашому регіоні викид!'**
+  /// In en, this message translates to:
+  /// **'Attention! There is an emission in your region!'**
   String get infromationAlarmText1;
 
   /// No description provided for @inforomationAlarmText2.
   ///
-  /// In uk, this message translates to:
-  /// **'Пройдіть в найближче укриття!'**
+  /// In en, this message translates to:
+  /// **'Go to the nearest shelter!'**
   String get inforomationAlarmText2;
 
   /// No description provided for @inforomationAlarmText3.
   ///
-  /// In uk, this message translates to:
-  /// **'Викиду немає'**
+  /// In en, this message translates to:
+  /// **'No emission'**
   String get inforomationAlarmText3;
 
   /// No description provided for @inforomationAlarmText4.
   ///
-  /// In uk, this message translates to:
-  /// **'Слідкуйте за подальшими оновленнями'**
+  /// In en, this message translates to:
+  /// **'Stay tuned for further updates'**
   String get inforomationAlarmText4;
 
   /// No description provided for @deleteRegion.
   ///
-  /// In uk, this message translates to:
-  /// **'Видалення регіону'**
+  /// In en, this message translates to:
+  /// **'Remove region'**
   String get deleteRegion;
 
   /// No description provided for @deleteRegioDescription.
   ///
-  /// In uk, this message translates to:
-  /// **'Ви точно впевнені, що хочете видалити регіон?'**
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove the region?'**
   String get deleteRegioDescription;
 
   /// No description provided for @approve.
   ///
-  /// In uk, this message translates to:
-  /// **'Так'**
+  /// In en, this message translates to:
+  /// **'Yes'**
   String get approve;
 
   /// No description provided for @cancel.
   ///
-  /// In uk, this message translates to:
-  /// **'Ні'**
+  /// In en, this message translates to:
+  /// **'No'**
   String get cancel;
 
   /// No description provided for @wifiTitleTrue.
   ///
-  /// In uk, this message translates to:
-  /// **'З\'єднання встановлене'**
+  /// In en, this message translates to:
+  /// **'Connection established'**
   String get wifiTitleTrue;
 
   /// No description provided for @wifiTitleFalse.
   ///
-  /// In uk, this message translates to:
-  /// **'Немає з\'єднання'**
+  /// In en, this message translates to:
+  /// **'No connection'**
   String get wifiTitleFalse;
 
   /// No description provided for @wifiContentTrue.
   ///
-  /// In uk, this message translates to:
-  /// **'Ви можете закрити це вікно'**
+  /// In en, this message translates to:
+  /// **'You can close this window'**
   String get wifiContentTrue;
 
   /// No description provided for @wifiContentFalse.
   ///
-  /// In uk, this message translates to:
-  /// **'Немає інтернет зʼєднання,\nперевірте налаштування'**
+  /// In en, this message translates to:
+  /// **'There is no internet connection.\n Please check your settings'**
   String get wifiContentFalse;
 
   /// No description provided for @close.
   ///
-  /// In uk, this message translates to:
-  /// **'Закрити'**
+  /// In en, this message translates to:
+  /// **'Close'**
   String get close;
 
   /// No description provided for @radiationLodearText.
   ///
-  /// In uk, this message translates to:
-  /// **'Завантаження даних'**
+  /// In en, this message translates to:
+  /// **'Loading data'**
   String get radiationLodearText;
 
   /// No description provided for @historyLimit.
   ///
-  /// In uk, this message translates to:
-  /// **'Ліміт історії'**
+  /// In en, this message translates to:
+  /// **'History limit'**
   String get historyLimit;
 
   /// No description provided for @hitoryTry.
   ///
-  /// In uk, this message translates to:
-  /// **'Спробуйте через'**
+  /// In en, this message translates to:
+  /// **'Try again in'**
   String get hitoryTry;
 
   /// No description provided for @seconds.
   ///
-  /// In uk, this message translates to:
-  /// **'с.'**
+  /// In en, this message translates to:
+  /// **'s.'**
   String get seconds;
 
   /// No description provided for @timerEndTitle.
   ///
-  /// In uk, this message translates to:
-  /// **'Таймер сплинув'**
+  /// In en, this message translates to:
+  /// **'Timer expired'**
   String get timerEndTitle;
 
   /// No description provided for @timerEndDescription.
   ///
-  /// In uk, this message translates to:
-  /// **'Можете спробувати ще раз'**
+  /// In en, this message translates to:
+  /// **'You can try again'**
   String get timerEndDescription;
 
   /// No description provided for @retry.
   ///
-  /// In uk, this message translates to:
-  /// **'Повторити'**
+  /// In en, this message translates to:
+  /// **'Tap to retry'**
   String get retry;
 
   /// No description provided for @alarmRunning.
   ///
-  /// In uk, this message translates to:
+  /// In en, this message translates to:
   /// **'Active'**
   String get alarmRunning;
 
   /// No description provided for @dataState.
   ///
-  /// In uk, this message translates to:
-  /// **'Сьогодні'**
+  /// In en, this message translates to:
+  /// **'Today'**
   String get dataState;
 
   /// No description provided for @emission.
   ///
-  /// In uk, this message translates to:
-  /// **'Викид'**
+  /// In en, this message translates to:
+  /// **'Emission'**
   String get emission;
 
   /// No description provided for @minutes.
   ///
-  /// In uk, this message translates to:
-  /// **'хв'**
+  /// In en, this message translates to:
+  /// **'min'**
   String get minutes;
 
   /// No description provided for @hour.
   ///
-  /// In uk, this message translates to:
-  /// **'год'**
+  /// In en, this message translates to:
+  /// **'h'**
   String get hour;
+
+  /// No description provided for @error_server.
+  ///
+  /// In en, this message translates to:
+  /// **'Server is not responding\nWe are working to restore service'**
+  String get error_server;
+
+  /// No description provided for @error_no_internet.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection'**
+  String get error_no_internet;
+
+  /// No description provided for @error_rate_limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again later'**
+  String get error_rate_limit;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -415,26 +429,25 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'uk'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'uk'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en':
-      return AppLocalizationsEn();
-    case 'uk':
-      return AppLocalizationsUk();
+    case 'en': return AppLocalizationsEn();
+    case 'uk': return AppLocalizationsUk();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

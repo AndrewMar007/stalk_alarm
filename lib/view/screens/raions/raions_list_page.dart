@@ -196,6 +196,8 @@ class _RaionsListPageState extends State<RaionsListPage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 20, 11, 2),
         centerTitle: true,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: Text(
           t.regions,
           style: const TextStyle(

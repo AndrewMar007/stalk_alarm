@@ -1,25 +1,34 @@
-import 'package:stalc_alarm/models/alarm_history_model.dart';
-
 import '../../../core/exceptions/failures.dart';
+import '../../../models/alarm_history_model.dart';
+import '../../../models/risk_region_model.dart';
 
 class AlarmHistoryBlocState {}
 
-class InitState extends AlarmHistoryBlocState {}
+class InitHistoryState extends AlarmHistoryBlocState {}
 
-class LoadingState extends AlarmHistoryBlocState {}
+class LoadingHistoryState extends AlarmHistoryBlocState {}
 
-class LoadedState extends AlarmHistoryBlocState {
+class LoadedHistoryState extends AlarmHistoryBlocState {
   final List<AlarmHistoryModel> listOfModel;
-  LoadedState({required this.listOfModel});
+  final OblastRiskResponse? risk;
+  final DateTime? updatedAt;
+  final DateTime? historyUpdatedAt;
+
+  LoadedHistoryState({
+    required this.listOfModel,
+    required this.risk,
+    required this.updatedAt,
+    required this.historyUpdatedAt,
+  });
 }
 
-class ErrorState extends AlarmHistoryBlocState {
+class ErrorHistoryState extends AlarmHistoryBlocState {
   final Failure failure;
-  ErrorState({required this.failure});
+  ErrorHistoryState({required this.failure});
 }
 
-class RateLimitedState extends AlarmHistoryBlocState {
+class RateHistoryLimitedState extends AlarmHistoryBlocState {
   final int secondsLeft;
 
-  RateLimitedState({required this.secondsLeft});
+  RateHistoryLimitedState({required this.secondsLeft});
 }
