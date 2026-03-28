@@ -10,6 +10,7 @@ import 'package:stalc_alarm/view/screens/raions/oblasts_page.dart';
 import 'package:stalc_alarm/view/screens/raions/regions_info_page.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_list_page.dart';
 import 'package:stalc_alarm/view/screens/raions/raions_page.dart';
+import 'package:stalc_alarm/view/screens/rules_page.dart';
 import 'package:stalc_alarm/view/screens/settings_page.dart';
 
 import '../models/admin_units.dart';
@@ -91,6 +92,12 @@ class RouteGenerator {
         }
         return _errorRoute();
 
+      //! Сторінки інформації
+      case '/rulesScreen':
+        if(args is RulesPage){
+          return CupertinoPageRoute(builder: (_) => RulesPage());
+        }
+        return _errorRoute();
       default:
         // If there is no such named route in the switch statement, e.g. /third
         return _errorRoute();
